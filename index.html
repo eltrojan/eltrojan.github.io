@@ -1,476 +1,266 @@
-<title>The Monster Was Us</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security Awareness — Simulation</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Nosifer&family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
-
   :root{
-    --ground:#050506;
-    --ground-2:#0b0708;
-    --surface:#120a0c;
-    --surface-2:#180d10;
-    --line:#2a1518;
-    --blood:#e10600;
-    --blood-bright:#ff2a2a;
-    --blood-deep:#7a0000;
-    --toxic:#54ff86;
-    --bone:#e9e3d7;
-    --muted:#9c8f88;
-    --dim:#6a5b58;
-    --amber:#f5a623;
-    --display:'Chakra Petch',ui-sans-serif,system-ui,sans-serif;
-    --scare:'Nosifer',var(--display);
-    --body:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --bg:#07070a; --panel:#101016; --panel2:#15151d; --line:#26262f;
+    --red:#e11d2a; --red2:#ff3b4e; --amber:#f5a623; --green:#28c76f; --cyan:#38bdf8;
+    --ink:#ececf1; --muted:#9a9aa7;
   }
-
   *{box-sizing:border-box}
+  html,body{margin:0}
   body{
-    margin:0;
-    background:var(--ground);
-    color:var(--bone);
-    font-family:var(--body);
-    -webkit-font-smoothing:antialiased;
-    line-height:1.6;
-    overflow-x:hidden;
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); min-height:100vh; overflow-x:hidden;
+    transition:background .8s ease;
+  }
+  /* mood background per phase */
+  body.attack{
+    background:
+      radial-gradient(1200px 700px at 50% -10%, rgba(225,29,42,.22), transparent 60%),
+      radial-gradient(900px 600px at 50% 120%, rgba(0,0,0,.6), transparent 60%),
+      var(--bg);
+  }
+  body.reveal{
+    background:
+      radial-gradient(1200px 700px at 50% -10%, rgba(40,199,111,.18), transparent 60%),
+      radial-gradient(900px 600px at 50% 120%, rgba(0,0,0,.55), transparent 60%),
+      var(--bg);
+  }
+  body::after{ /* CRT scanlines */
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:5; opacity:.10;
+    background:repeating-linear-gradient(to bottom, rgba(255,255,255,.14) 0 1px, transparent 1px 3px);
   }
 
-  /* heartbeat glow behind everything */
-  .heartbeat{
-    position:fixed;inset:0;z-index:0;pointer-events:none;
-    background:radial-gradient(90% 70% at 50% 34%, rgba(225,6,0,.16), transparent 55%);
-    animation:beat 1.9s ease-in-out infinite;
-  }
-  @keyframes beat{
-    0%,100%{opacity:.35;transform:scale(1)}
-    14%{opacity:.9;transform:scale(1.04)}
-    28%{opacity:.4}
-    42%{opacity:.75;transform:scale(1.02)}
-    56%{opacity:.35;transform:scale(1)}
-  }
+  .stage{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px 18px}
+  .wrap{width:100%; max-width:760px; position:relative; z-index:10}
+  [hidden]{display:none !important}
 
-  #atmos{position:fixed;inset:0;width:100%;height:100%;z-index:1;display:block}
-  #grain{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;opacity:.06;mix-blend-mode:screen}
+  .fade-in{animation:fade .6s ease both}
+  @keyframes fade{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
 
-  .crt{
-    position:fixed;inset:0;z-index:3;pointer-events:none;
-    background:repeating-linear-gradient(to bottom, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
-    animation:flick 6s steps(60) infinite;
-  }
-  @keyframes flick{
-    0%,96%,100%{opacity:.5}
-    97%{opacity:.2}
-    98%{opacity:.7}
-    99%{opacity:.35}
-  }
-  .vig{
-    position:fixed;inset:0;z-index:3;pointer-events:none;
-    background:radial-gradient(100% 100% at 50% 45%, transparent 48%, rgba(0,0,0,.85) 100%);
-  }
+  .skull{font-size:64px; line-height:1; text-align:center; filter:drop-shadow(0 0 18px rgba(225,29,42,.7))}
+  .kicker{text-align:center; margin:16px 0 6px; color:var(--red2); letter-spacing:.4em; text-transform:uppercase; font-size:12px; font-weight:800}
+  h1{text-align:center; margin:0; font-weight:900; letter-spacing:.06em; font-size:clamp(34px,8vw,72px); color:#fff;
+     text-shadow:0 0 22px rgba(225,29,42,.55), 0 0 2px rgba(255,59,78,.9)}
+  .tagline{text-align:center; max-width:34em; margin:14px auto 0; color:#ffd7db; font-size:clamp(16px,2.4vw,20px); font-weight:600; line-height:1.5}
 
-  .wrap{position:relative;z-index:4;max-width:1060px;margin:0 auto;padding-inline:20px}
-
-  /* alert ticker */
-  .ticker{
-    position:relative;z-index:4;
-    border-bottom:1px solid var(--line);
-    background:linear-gradient(180deg,rgba(122,0,0,.35),rgba(5,5,6,.2));
-    overflow:hidden;white-space:nowrap;
-    font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--blood-bright);
-    padding:9px 0;
-  }
-  .ticker .run{display:inline-block;padding-left:100%;animation:scroll 22s linear infinite}
-  .ticker b{color:var(--bone)}
-  @keyframes scroll{to{transform:translateX(-100%)}}
-
-  /* HERO */
-  .hero{
-    position:relative;
-    display:grid;grid-template-columns:1.05fr .95fr;gap:34px;align-items:center;
-    padding-block:36px 44px;
-  }
-  @media (max-width:840px){.hero{grid-template-columns:1fr;gap:6px}}
-
-  .eyebrow{
-    display:inline-flex;align-items:center;gap:9px;
-    font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;
-    color:var(--blood-bright);
-    border:1px solid rgba(225,6,0,.4);background:rgba(225,6,0,.07);
-    padding:7px 13px;border-radius:2px;
-    animation:warn 2.4s steps(1) infinite;
-  }
-  @keyframes warn{0%,80%,100%{opacity:1}85%{opacity:.35}90%{opacity:1}}
-
-  h1{margin:22px 0 0;line-height:.9}
-  h1 .l1{
-    display:block;font-family:var(--display);font-weight:700;
-    font-size:clamp(26px,5.4vw,52px);letter-spacing:.06em;color:var(--bone);
-    text-transform:uppercase;
-  }
-  .scare{
-    display:block;
-    font-family:var(--scare);
-    font-size:clamp(52px,13vw,132px);
-    line-height:1;
-    color:var(--blood);
-    letter-spacing:.01em;
-    margin-top:6px;
-    text-shadow:0 0 30px rgba(225,6,0,.6);
-    position:relative;
-    animation:jitter 4.5s steps(1) infinite;
-  }
-  .scare::before,.scare::after{
-    content:attr(data-t);position:absolute;left:0;top:0;width:100%;
-    pointer-events:none;
-  }
-  .scare::before{color:#00e0ff;mix-blend-mode:screen;opacity:.45;transform:translate(-3px,1px)}
-  .scare::after{color:var(--blood-bright);mix-blend-mode:screen;opacity:.5;transform:translate(3px,-1px)}
-  @keyframes jitter{
-    0%,90%,100%{transform:translate(0,0)}
-    91%{transform:translate(-3px,2px) skewX(6deg)}
-    93%{transform:translate(4px,-2px)}
-    95%{transform:translate(-2px,1px) skewX(-4deg)}
-    97%{transform:translate(2px,0)}
-  }
-
-  .subhead{color:var(--muted);font-size:clamp(15px,2.1vw,18px);max-width:44ch;margin:24px 0 0}
-  .subhead strong{color:var(--bone);font-weight:600}
-
-  /* transmission terminal */
-  .transmission{
-    margin-top:26px;max-width:520px;
-    border:1px solid var(--line);border-radius:4px;
-    background:linear-gradient(180deg,rgba(18,10,12,.94),rgba(5,5,6,.94));
-    box-shadow:0 30px 70px -34px rgba(225,6,0,.5);
-    font-family:var(--mono);font-size:13.5px;line-height:1.85;
-    overflow:hidden;
-  }
-  .transmission .bar{
-    display:flex;align-items:center;gap:8px;
-    padding:8px 12px;border-bottom:1px solid var(--line);
-    background:rgba(122,0,0,.18);color:var(--muted);font-size:11px;letter-spacing:.12em;
-  }
-  .transmission .bar .d{width:9px;height:9px;border-radius:50%;background:var(--blood);box-shadow:0 0 8px var(--blood)}
-  .transmission .body{padding:14px 16px 16px;min-height:150px;color:var(--toxic);white-space:pre-wrap}
-  .transmission .body .sig{color:var(--blood-bright)}
-  .cursor{display:inline-block;width:8px;height:15px;background:var(--toxic);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+  /* ---- attack loader ---- */
+  .terminal{margin:26px auto 0; max-width:620px; background:#05050a; border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 30px 60px rgba(0,0,0,.5)}
+  .term-bar{display:flex; align-items:center; gap:7px; padding:10px 14px; background:#0c0c13; border-bottom:1px solid var(--line)}
+  .term-bar i{width:11px; height:11px; border-radius:50%; display:inline-block}
+  .term-bar i:nth-child(1){background:#ff5f56}.term-bar i:nth-child(2){background:#ffbd2e}.term-bar i:nth-child(3){background:#27c93f}
+  .term-bar span{margin-left:8px; color:#6b6b77; font-size:12px; font-family:"Cascadia Code",Consolas,Menlo,monospace}
+  .log{padding:14px 16px; min-height:188px; font-family:"Cascadia Code",Consolas,Menlo,monospace; font-size:13px; line-height:1.9; color:#c8ffd0}
+  .log div{white-space:pre-wrap}
+  .log .t{color:#5b6b7f}
+  .log .ok{color:var(--green)}
+  .log .bad{color:var(--red2)}
+  .caret{display:inline-block; width:8px; background:var(--green); animation:blink 1s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
 
-  /* THE EYE (3D) */
-  .stage{perspective:900px;display:flex;align-items:center;justify-content:center;min-height:360px}
-  @media (max-width:840px){.stage{min-height:320px;margin-top:12px}}
-  .orb{
-    position:relative;width:260px;height:260px;transform-style:preserve-3d;
-    animation:sway 8s ease-in-out infinite;will-change:transform;
-  }
-  @keyframes sway{
-    0%,100%{transform:translateY(0) rotateX(6deg) rotateY(-4deg)}
-    50%{transform:translateY(-12px) rotateX(6deg) rotateY(6deg)}
-  }
-  .ring{position:absolute;inset:0;border-radius:50%;transform-style:preserve-3d}
-  .ring.a{border:2px solid rgba(225,6,0,.5);box-shadow:0 0 28px rgba(225,6,0,.3) inset;animation:sp1 10s linear infinite}
-  .ring.b{inset:24px;border:1.5px dashed rgba(233,227,215,.28);animation:sp2 14s linear infinite}
-  .ring.c{inset:50px;border:2px solid rgba(122,0,0,.7);animation:sp3 8s linear infinite}
-  @keyframes sp1{from{transform:rotateX(74deg) rotateZ(0)}to{transform:rotateX(74deg) rotateZ(360deg)}}
-  @keyframes sp2{from{transform:rotateY(70deg) rotateZ(0)}to{transform:rotateY(70deg) rotateZ(-360deg)}}
-  @keyframes sp3{from{transform:rotateX(28deg) rotateY(44deg) rotateZ(0)}to{transform:rotateX(28deg) rotateY(44deg) rotateZ(360deg)}}
+  .bar-wrap{max-width:620px; margin:16px auto 0}
+  .bar-top{display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); margin-bottom:7px; font-family:Consolas,Menlo,monospace}
+  .bar-top b{color:var(--red2)}
+  .bar{height:12px; border-radius:999px; background:#17171f; border:1px solid var(--line); overflow:hidden}
+  .bar > i{display:block; height:100%; width:0; border-radius:999px; background:linear-gradient(90deg,var(--red),var(--red2))}
+  .skip{display:block; text-align:center; margin:18px auto 0; color:#5b6b7f; font-size:12px; background:none; border:0; cursor:pointer; text-decoration:underline}
+  .skip:hover{color:var(--muted)}
 
-  .eye{
-    position:absolute;inset:78px;border-radius:50%;
-    transform:translateZ(40px);
-    background:radial-gradient(circle at 50% 45%, #f4efe4 0%, #d8cfc0 46%, #8a7f70 70%, #201a18 100%);
-    box-shadow:0 0 40px rgba(225,6,0,.55), inset 0 0 26px rgba(0,0,0,.6);
-    overflow:hidden;
-    display:flex;align-items:center;justify-content:center;
-  }
-  .veins{position:absolute;inset:0;border-radius:50%;
-    background:
-      radial-gradient(circle at 22% 30%, rgba(225,6,0,.5), transparent 22%),
-      radial-gradient(circle at 78% 68%, rgba(225,6,0,.4), transparent 20%),
-      radial-gradient(circle at 60% 20%, rgba(225,6,0,.35), transparent 18%);
-    mix-blend-mode:multiply;opacity:.8;
-  }
-  .iris{
-    position:relative;width:46%;height:46%;border-radius:50%;
-    background:radial-gradient(circle at 50% 50%, #ff3b1a 0%, #c00 40%, #4a0000 75%, #1a0000 100%);
-    box-shadow:0 0 22px rgba(225,6,0,.8), inset 0 0 14px rgba(0,0,0,.7);
-    transition:transform .12s ease-out;
-    display:flex;align-items:center;justify-content:center;
-  }
-  .pupil{width:42%;height:42%;border-radius:50%;background:#040000;box-shadow:0 0 10px rgba(0,0,0,.9), inset 0 0 6px rgba(255,60,30,.5)}
-  .glint{position:absolute;top:26%;left:30%;width:16%;height:16%;border-radius:50%;background:rgba(255,255,255,.85);filter:blur(1px)}
-  .lid{
-    position:absolute;left:-2%;right:-2%;top:-2%;height:104%;
-    background:linear-gradient(180deg,#0b0708,#160b0d);
-    transform-origin:top;transform:scaleY(0);
-    animation:blinkLid 6.2s ease-in-out infinite;
-  }
-  @keyframes blinkLid{
-    0%,92%,100%{transform:scaleY(0)}
-    95%{transform:scaleY(1)}
-    96%{transform:scaleY(1)}
-    98%{transform:scaleY(0)}
-  }
+  /* ---- reveal ---- */
+  .surprise-wrap{text-align:center}
+  .badge{display:inline-block; margin:0 auto 10px; padding:6px 14px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:#04170c; background:var(--green)}
+  h1.surprise{color:#fff; text-shadow:0 0 26px rgba(40,199,111,.55)}
+  .relief{margin:24px auto 0; max-width:620px; background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--green);
+          border-radius:12px; padding:16px 18px; font-size:14.5px; line-height:1.6; text-align:left}
+  .relief b{color:#fff}
 
-  /* STAT STRIP */
-  .strip{
-    position:relative;z-index:4;max-width:1060px;margin:0 auto;
-    display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
-    border:1px solid var(--line);border-radius:4px;overflow:hidden;
+  .card{margin:22px auto 0; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:0 30px 60px rgba(0,0,0,.45); text-align:left}
+  .card h2{margin:0; padding:18px 22px; font-size:16px; background:linear-gradient(180deg,var(--panel2),transparent); border-bottom:1px solid var(--line); color:#fff; display:flex; align-items:center; gap:10px}
+  .card h2 .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
+  .what{padding:18px 22px; color:var(--muted); font-size:14.5px; line-height:1.65; border-bottom:1px solid var(--line)}
+  .what b{color:var(--ink)}
+  ol.steps{list-style:none; margin:0; padding:10px 14px 18px}
+  ol.steps li{display:flex; gap:14px; padding:14px; border-radius:11px; align-items:flex-start}
+  ol.steps li + li{border-top:1px dashed var(--line)}
+  .num{flex:0 0 34px; height:34px; width:34px; border-radius:9px; background:rgba(40,199,111,.14); color:var(--green); border:1px solid rgba(40,199,111,.4); display:grid; place-items:center; font-weight:900; font-size:15px}
+  .step-t{font-weight:700; color:#fff; font-size:15px; margin-bottom:2px}
+  .step-d{color:var(--muted); font-size:13.5px; line-height:1.55}
+  .step-d code{background:#000;border:1px solid var(--line);padding:1px 6px;border-radius:5px;color:#ffd7db;font-size:12.5px}
+  .report{margin:22px auto 6px; max-width:620px; text-align:center; background:linear-gradient(180deg, rgba(245,166,35,.12), transparent); border:1px solid rgba(245,166,35,.35); border-radius:12px; padding:18px}
+  .report b{color:#fff}
+  .report .btn{display:inline-block; margin-top:12px; background:var(--amber); color:#241a00; font-weight:800; text-decoration:none; padding:11px 20px; border-radius:10px; font-size:14.5px}
+  .foot{text-align:center; color:#6b6b77; font-size:12.5px; margin:22px auto 0; line-height:1.6}
+
+  @media (max-width:430px){
+    h1{font-size:7.2vw; letter-spacing:.01em}
+    .kicker{letter-spacing:.2em; font-size:10.5px}
+    .skull{font-size:52px}
   }
-  @media (max-width:620px){.strip{grid-template-columns:repeat(2,1fr)}}
-  .stat{background:var(--ground-2);padding:18px}
-  .stat .n{font-family:var(--display);font-weight:700;font-size:26px}
-  .stat .n.bad{color:var(--blood-bright)}
-  .stat .n.ok{color:var(--toxic)}
-  .stat .l{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:5px}
-
-  /* SECTIONS */
-  section.block{position:relative;z-index:4;padding-block:56px}
-  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--blood-bright);display:flex;align-items:center;gap:12px;margin-bottom:14px}
-  .kicker::before{content:"";width:26px;height:1px;background:var(--blood)}
-  h2{font-family:var(--display);font-weight:700;font-size:clamp(24px,4.4vw,36px);line-height:1.06;margin:0;text-transform:uppercase;letter-spacing:.02em;text-wrap:balance}
-  .lead{color:var(--muted);max-width:62ch;margin:14px 0 0;font-size:16px}
-
-  .flags{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:30px}
-  @media (max-width:720px){.flags{grid-template-columns:1fr}}
-  .flag{
-    display:flex;gap:14px;
-    background:linear-gradient(180deg,var(--surface),var(--ground-2));
-    border:1px solid var(--line);border-left:3px solid var(--blood);
-    border-radius:4px;padding:18px;
-    transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;
+  @media (prefers-reduced-motion: no-preference){
+    .skull{animation:flicker 4.5s infinite}
+    #phase1 h1{animation:glitch 3.4s infinite}
+    @keyframes flicker{0%,19%,21%,23%,100%{opacity:1}20%,22%{opacity:.35}}
+    @keyframes glitch{
+      0%,92%,100%{text-shadow:0 0 22px rgba(225,29,42,.55),0 0 2px rgba(255,59,78,.9)}
+      93%{text-shadow:-2px 0 var(--red2),2px 0 var(--cyan)}
+      95%{text-shadow:2px 0 var(--red2),-2px 0 var(--cyan)}
+      97%{text-shadow:-1px 0 var(--red2),1px 0 var(--cyan)}
+    }
   }
-  .flag:hover{transform:translateY(-3px) skewX(-.4deg);border-left-color:var(--blood-bright);box-shadow:0 24px 44px -30px rgba(225,6,0,.7)}
-  .flag .ico{flex:0 0 auto;width:40px;height:40px;border-radius:4px;display:flex;align-items:center;justify-content:center;background:rgba(225,6,0,.1);color:var(--blood-bright);font-family:var(--mono);font-size:13px}
-  .flag h3{margin:2px 0 4px;font-family:var(--display);font-weight:600;font-size:16px}
-  .flag p{margin:0;color:var(--muted);font-size:14px}
-  .flag code{font-family:var(--mono);color:var(--amber);background:rgba(245,166,35,.08);padding:1px 5px;border-radius:3px;font-size:12.5px}
-
-  .donow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:30px;counter-reset:step}
-  @media (max-width:720px){.donow{grid-template-columns:1fr}}
-  .step{background:var(--ground-2);border:1px solid var(--line);border-radius:4px;padding:20px 18px}
-  .step::before{counter-increment:step;content:"0" counter(step);font-family:var(--display);font-weight:700;font-size:13px;color:var(--blood-bright);letter-spacing:.1em}
-  .step h3{margin:10px 0 6px;font-family:var(--display);font-weight:600;font-size:17px}
-  .step p{margin:0;color:var(--muted);font-size:14px}
-
-  .safe{
-    margin-top:44px;display:flex;gap:16px;align-items:flex-start;
-    background:linear-gradient(120deg,rgba(84,255,134,.06),rgba(225,6,0,.04));
-    border:1px solid rgba(84,255,134,.24);border-radius:6px;padding:22px;
-  }
-  .safe .ico{flex:0 0 auto;color:var(--toxic)}
-  .safe h3{margin:0 0 6px;font-family:var(--display);font-weight:700;font-size:18px;color:var(--toxic);text-transform:uppercase;letter-spacing:.03em}
-  .safe p{margin:0;color:var(--muted);font-size:14.5px;max-width:70ch}
-  .safe strong{color:var(--bone)}
-
-  footer{position:relative;z-index:4;border-top:1px solid var(--line);margin-top:56px;padding-block:30px 46px}
-  .foot-inner{max-width:1060px;margin:0 auto;padding-inline:20px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
-  .foot-brand{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-  .foot-brand .chip{font-family:var(--mono);font-weight:400;font-size:11px;letter-spacing:.1em;color:var(--blood-bright);border:1px solid rgba(225,6,0,.4);border-radius:3px;padding:3px 8px;text-transform:uppercase}
-  .foot-note{font-family:var(--mono);font-size:11.5px;color:var(--dim);letter-spacing:.05em}
-
-  @media (prefers-reduced-motion:reduce){
-    *{animation:none!important;transition:none!important}
-    .lid{transform:scaleY(0)}
-    .scare::before,.scare::after{display:none}
-  }
+  /* If JavaScript is off, skip the theatrics and show the lesson. */
+  .no-js #phase1{display:none}
+  .no-js #phase2{display:block !important}
 </style>
+</head>
+<body class="attack no-js">
+  <!-- PHASE 1 — the "attack" (theatrical; nothing is actually happening) -->
+  <section class="stage" id="phase1">
+    <div class="wrap">
+      <div class="skull">☠️</div>
+      <div class="kicker">⚠ Data breach in progress</div>
+      <h1>CONGRATULATIONS</h1>
+      <p class="tagline">Your data has been stolen — you just became the reason your organization could be hacked.</p>
 
-<div class="heartbeat"></div>
-<canvas id="atmos"></canvas>
-<canvas id="grain"></canvas>
-<div class="crt"></div>
-<div class="vig"></div>
-
-<div class="ticker"><span class="run">⚠ INTRUSION DETECTED · UNAUTHORIZED ACCESS SIMULATED · <b>DLI OFFENSIVE TEAM</b> · YOUR CLICK WAS LOGGED · THIS IS A CONTROLLED SECURITY EXERCISE · NO DATA WAS TAKEN · ⚠ INTRUSION DETECTED · UNAUTHORIZED ACCESS SIMULATED · <b>DLI OFFENSIVE TEAM</b> · YOUR CLICK WAS LOGGED ·&nbsp;</span></div>
-
-<div class="wrap">
-  <div class="hero">
-    <div>
-      <span class="eyebrow">● breach simulated — you opened the door</span>
-      <h1>
-        <span class="l1">You've been</span>
-        <span class="scare" data-t="PHISHED">PHISHED</span>
-      </h1>
-      <p class="subhead">That link was a trap set by the <strong>DLI Offensive Team</strong>. You clicked. In the dark, that's all it takes — one click, and something gets in.</p>
-
-      <div class="transmission">
-        <div class="bar"><span class="d"></span> INCOMING TRANSMISSION · SRC: UNKNOWN</div>
-        <div class="body" id="tx"></div>
+      <div class="terminal" role="log" aria-live="polite" aria-label="Attack progress">
+        <div class="term-bar"><i></i><i></i><i></i><span>exfiltration@attacker: ~/harvest</span></div>
+        <div class="log" id="log"></div>
       </div>
-    </div>
 
-    <div class="stage" id="stage">
-      <div class="orb" id="orb">
-        <div class="ring a"></div>
-        <div class="ring b"></div>
-        <div class="ring c"></div>
-        <div class="eye">
-          <div class="veins"></div>
-          <div class="iris" id="iris">
-            <div class="pupil"></div>
-          </div>
-          <div class="glint"></div>
-          <div class="lid"></div>
+      <div class="bar-wrap">
+        <div class="bar-top"><span id="status">Stealing your data…</span><b id="pct">0%</b></div>
+        <div class="bar"><i id="fill"></i></div>
+      </div>
+
+      <button class="skip" id="skip" type="button">Skip →</button>
+    </div>
+  </section>
+
+  <!-- PHASE 2 — the reveal + lesson -->
+  <section class="stage" id="phase2" hidden>
+    <div class="wrap">
+      <div class="surprise-wrap">
+        <span class="badge">Gotcha</span>
+        <div class="skull" style="filter:drop-shadow(0 0 18px rgba(40,199,111,.6))">🎉</div>
+        <h1 class="surprise">SURPRISE!</h1>
+        <p class="tagline" style="color:#c7f6d6">It's a phishing simulation — not a real attack.</p>
+      </div>
+
+      <div class="relief">
+        <b>Breathe.</b> Nothing was actually stolen, there was no real breach, and your password was
+        <b>never stored</b> (the platform keeps only a redacted length marker). But in a <b>real</b> attack,
+        the details you just entered would already be in an attacker's hands — enough to read your email,
+        reach internal systems, and move deeper into the organization. Here's how to make sure the next one
+        doesn't fool you.
+      </div>
+
+      <section class="card">
+        <h2><span class="dot"></span> What just happened</h2>
+        <div class="what">
+          You received a message that looked legitimate, followed its link, and <b>entered your information on a
+          fake page</b> controlled by this test. That single submission is all an attacker needs to begin a breach —
+          no malware required.
         </div>
+
+        <h2><span class="dot"></span> How to detect phishing next time</h2>
+        <ol class="steps">
+          <li><span class="num">1</span><div><div class="step-t">Inspect the sender's real address</div>
+            <div class="step-d">Don't trust the display name. Expand the actual email address and look for lookalikes like
+            <code>micros0ft-support.com</code> or a public domain (<code>@gmail.com</code>) pretending to be your company.</div></div></li>
+          <li><span class="num">2</span><div><div class="step-t">Hover before you click</div>
+            <div class="step-d">Point at a link (don't click) and read the real destination. If the domain isn't the one you expect, stop.</div></div></li>
+          <li><span class="num">3</span><div><div class="step-t">Distrust urgency, threats, rewards and exclusivity</div>
+            <div class="step-d">"Act now", "account suspended", "you've been selected", "limited seats" — manufactured pressure
+            is designed to rush you past your judgment.</div></div></li>
+          <li><span class="num">4</span><div><div class="step-t">Never sign in through an email link</div>
+            <div class="step-d">Reach portals and HR tools from your own bookmarks or by typing the address yourself.</div></div></li>
+          <li><span class="num">5</span><div><div class="step-t">Check the address bar before you type anything</div>
+            <div class="step-d">Confirm the exact domain and the padlock. <code>https://</code> alone does <b>not</b> mean a site is safe.</div></div></li>
+          <li><span class="num">6</span><div><div class="step-t">Watch for odd details</div>
+            <div class="step-d">Generic greetings ("Dear user"), spelling slips, mismatched dates, or a request that doesn't fit your role.</div></div></li>
+          <li><span class="num">7</span><div><div class="step-t">Verify unexpected requests out-of-band</div>
+            <div class="step-d">Asked for credentials, payment or data? Confirm through a known phone number or chat — never by replying.</div></div></li>
+          <li><span class="num">8</span><div><div class="step-t">When in doubt, report it</div>
+            <div class="step-d">Reporting a suspicious email protects everyone — always better than clicking to "just check".</div></div></li>
+        </ol>
+      </section>
+
+      <div class="report">
+        <b>See something suspicious? Report it.</b><br>
+        Use the <b>Report Phish</b> button in your mail client, or forward the message to your security team.
+        <br><a class="btn" href="#">Report a phishing email</a>
       </div>
-    </div>
-  </div>
-</div>
 
-<div class="wrap" style="margin-top:6px">
-  <div class="strip">
-    <div class="stat"><div class="n bad">1</div><div class="l">Click · it was yours</div></div>
-    <div class="stat"><div class="n bad">&lt;3s</div><div class="l">To be compromised</div></div>
-    <div class="stat"><div class="n ok">0</div><div class="l">Bytes actually taken</div></div>
-    <div class="stat"><div class="n ok">5m</div><div class="l">To never fall again ↓</div></div>
-  </div>
-</div>
-
-<div class="wrap">
-  <section class="block">
-    <div class="kicker">The autopsy</div>
-    <h2>What was hiding in that message</h2>
-    <p class="lead">A real attacker doesn't break down the door — they get you to open it. Here's what this lure was carrying. Learn its face, and it can't wear a mask on you again.</p>
-
-    <div class="flags">
-      <div class="flag"><div class="ico">01</div><div><h3>A face that wasn't real</h3><p>The sender mimicked someone you trust — a swapped letter, <code>rn</code> posing as <code>m</code>. Read the full address, never just the name it shows you.</p></div></div>
-      <div class="flag"><div class="ico">02</div><div><h3>A voice that rushed you</h3><p>"Act now or you're locked out." Fear is the weapon. It's built to stop you thinking. Real IT almost never demands you panic-click.</p></div></div>
-      <div class="flag"><div class="ico">03</div><div><h3>A door to nowhere good</h3><p>The link's text and its true destination didn't match. Hover before you click and read where it actually drags you.</p></div></div>
-      <div class="flag"><div class="ico">04</div><div><h3>A hand reaching for your keys</h3><p>A login page you never went looking for is bait. When unsure, open the site yourself from a bookmark — never from the message.</p></div></div>
+      <p class="foot">
+        This page was part of an authorized security-awareness simulation run by your organization.<br>
+        No credentials were captured in clear text. Thank you for helping keep us secure.
+      </p>
     </div>
   </section>
 
-  <section class="block" style="padding-top:0">
-    <div class="kicker">Ward it off</div>
-    <h2>Three ways to stop being easy prey</h2>
-    <div class="donow">
-      <div class="step"><h3>Report it</h3><p>Hit <strong>Report Phish</strong> in your mail client the moment something feels wrong. Reporting fast is what keeps the whole team safe.</p></div>
-      <div class="step"><h3>Slow the click</h3><p>Pause on anything asking you to log in, pay, or "verify." Confirm through a channel you already trust before you act.</p></div>
-      <div class="step"><h3>Arm MFA</h3><p>With multi-factor on, a stolen password alone gets an attacker nowhere. If it's offered, switch it on today.</p></div>
-    </div>
+  <script>
+  (function () {
+    document.body.classList.remove('no-js');
 
-    <div class="safe">
-      <div class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div>
-      <div>
-        <h3>The lights are on. You're safe.</h3>
-        <p>There was no monster — just <strong>your own security team</strong>, running a controlled drill. No password was captured, nothing left your device, and <strong>you are not in any trouble</strong>. We scared you on purpose, once, so the real thing never gets the chance. That flinch you just felt? That's the instinct that protects you now. Thank you for facing it.</p>
-      </div>
-    </div>
-  </section>
-</div>
+    var DURATION = 10000; // 10 seconds of "exfiltration"
+    var log = document.getElementById('log');
+    var fill = document.getElementById('fill');
+    var pct = document.getElementById('pct');
+    var status = document.getElementById('status');
+    var caret = '<span class="caret">&nbsp;</span>';
 
-<footer>
-  <div class="foot-inner">
-    <div class="foot-brand">DLI Offensive Team <span class="chip">Authorized Exercise</span></div>
-    <div class="foot-note">Awareness simulation · no personal data recorded · questions → your security team</div>
-  </div>
-</footer>
-
-<script>
-var REDUCE = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/* ---------- drifting ash / embers ---------- */
-(function(){
-  var c=document.getElementById('atmos'), x=c.getContext('2d'), w,h,dpr,p=[];
-  function size(){dpr=Math.min(window.devicePixelRatio||1,2);w=c.clientWidth;h=c.clientHeight;c.width=w*dpr;c.height=h*dpr;x.setTransform(dpr,0,0,dpr,0,0);}
-  function build(){
-    var n=Math.max(30,Math.min(80,Math.floor(w*h/22000)));p=[];
-    for(var i=0;i<n;i++)p.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.6+.4,vy:-(Math.random()*.4+.15),vx:(Math.random()-.5)*.25,a:Math.random()*.5+.2,red:Math.random()<.35});
-  }
-  function frame(){
-    x.clearRect(0,0,w,h);
-    for(var i=0;i<p.length;i++){var m=p[i];m.y+=m.vy;m.x+=m.vx;if(m.y<-6){m.y=h+6;m.x=Math.random()*w;}if(m.x<-6)m.x=w+6;if(m.x>w+6)m.x=-6;
-      x.beginPath();x.arc(m.x,m.y,m.r,0,6.283);
-      x.fillStyle=m.red?'rgba(225,20,10,'+m.a+')':'rgba(200,180,160,'+(m.a*.5)+')';
-      x.fill();
+    // Theatrical log lines, each revealed when the progress passes its threshold.
+    var lines = [
+      { at: 2,  html: '<span class="t">$</span> initializing capture…' },
+      { at: 10, html: '<span class="t">[+]</span> Submitted credentials captured <span class="ok">✓</span>' },
+      { at: 24, html: '<span class="t">[+]</span> Session cookies harvested <span class="ok">✓</span>' },
+      { at: 40, html: '<span class="t">[+]</span> Authenticating to mail server… <span class="ok">✓</span>' },
+      { at: 56, html: '<span class="t">[+]</span> Reading inbox &amp; contacts <span class="ok">✓</span>' },
+      { at: 70, html: '<span class="t">[+]</span> Enumerating internal file shares <span class="ok">✓</span>' },
+      { at: 84, html: '<span class="t">[+]</span> Packaging data for exfiltration… <span class="ok">✓</span>' },
+      { at: 97, html: '<span class="t">[!]</span> <span class="bad">Uploading to attacker server…</span>' }
+    ];
+    var shown = 0;
+    function renderLog() {
+      var html = '';
+      for (var i = 0; i < shown; i++) html += '<div>' + lines[i].html + '</div>';
+      html += '<div>' + caret + '</div>';
+      log.innerHTML = html;
+      log.scrollTop = log.scrollHeight;
     }
-    if(!REDUCE) raf=requestAnimationFrame(frame);
-  }
-  var raf;
-  function go(){size();build();cancelAnimationFrame(raf);frame();}
-  window.addEventListener('resize',function(){size();build();});
-  go();
-})();
+    renderLog();
 
-/* ---------- film grain ---------- */
-(function(){
-  var c=document.getElementById('grain'), x=c.getContext('2d'), tile,tw=140,th=140,frame=0;
-  function make(){c.width=c.clientWidth;c.height=c.clientHeight;
-    var t=document.createElement('canvas');t.width=tw;t.height=th;var tx=t.getContext('2d');
-    var img=tx.createImageData(tw,th),d=img.data;
-    for(var i=0;i<d.length;i+=4){var v=Math.random()*255;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;}
-    tx.putImageData(img,0,0);tile=t;
-  }
-  function draw(){
-    if(!tile)return;
-    x.clearRect(0,0,c.width,c.height);
-    var ox=Math.random()*tw|0, oy=Math.random()*th|0;
-    for(var yy=-oy;yy<c.height;yy+=th)for(var xx=-ox;xx<c.width;xx+=tw)x.drawImage(tile,xx,yy);
-  }
-  make();draw();
-  if(!REDUCE){setInterval(function(){frame++;if(frame%2===0){make();}draw();},90);}
-  window.addEventListener('resize',function(){make();draw();});
-})();
+    var start = null, done = false;
+    function tick(ts) {
+      if (start === null) start = ts;
+      var p = Math.min(1, (ts - start) / DURATION);
+      var p100 = Math.round(p * 100);
+      fill.style.width = p100 + '%';
+      pct.textContent = p100 + '%';
+      while (shown < lines.length && p100 >= lines[shown].at) { shown++; renderLog(); }
+      if (p100 >= 100) status.textContent = 'Exfiltration complete';
+      if (p < 1 && !done) { requestAnimationFrame(tick); } else if (!done) { finish(); }
+    }
 
-/* ---------- the eye follows the cursor ---------- */
-(function(){
-  if(REDUCE)return;
-  var iris=document.getElementById('iris'), orb=document.getElementById('orb'), stage=document.getElementById('stage');
-  if(!iris)return;
-  window.addEventListener('mousemove',function(e){
-    var r=iris.getBoundingClientRect();
-    var cx=r.left+r.width/2, cy=r.top+r.height/2;
-    var dx=e.clientX-cx, dy=e.clientY-cy;
-    var ang=Math.atan2(dy,dx), dist=Math.min(Math.hypot(dx,dy)/40,1)*12;
-    iris.style.transform='translate('+(Math.cos(ang)*dist)+'px,'+(Math.sin(ang)*dist)+'px)';
-  });
-  // subtle 3D parallax on the whole orb
-  var tx=0,ty=0,ax=0,ay=0,active=false;
-  stage.addEventListener('mouseenter',function(){active=true;orb.style.animation='none';});
-  stage.addEventListener('mousemove',function(e){var r=stage.getBoundingClientRect();tx=((e.clientX-r.left)/r.width-.5)*22;ty=((e.clientY-r.top)/r.height-.5)*-16;});
-  stage.addEventListener('mouseleave',function(){tx=0;ty=0;active=false;});
-  (function t(){ax+=(tx-ax)*.08;ay+=(ty-ay)*.08;
-    if(active||Math.abs(ax)>.15||Math.abs(ay)>.15){orb.style.transform='rotateX('+(6+ay)+'deg) rotateY('+ax+'deg)';}
-    else{orb.style.transform='';orb.style.animation='';}
-    requestAnimationFrame(t);
+    var timer = requestAnimationFrame(tick);
+
+    function finish() {
+      if (done) return; done = true;
+      cancelAnimationFrame(timer);
+      var p1 = document.getElementById('phase1'), p2 = document.getElementById('phase2');
+      p1.hidden = true;
+      p2.hidden = false;
+      p2.classList.add('fade-in');
+      document.body.classList.remove('attack');
+      document.body.classList.add('reveal');
+      window.scrollTo(0, 0);
+    }
+
+    document.getElementById('skip').addEventListener('click', finish);
   })();
-})();
-
-/* ---------- the intruder types ---------- */
-(function(){
-  var el=document.getElementById('tx');
-  var lines=[
-    {t:"i saw you click.\n",c:""},
-    {t:"one link. that's all i needed.\n",c:""},
-    {t:"in a real breach i'd already be inside —\n",c:""},
-    {t:"reading your inbox. wearing your name.\n",c:""},
-    {t:"\n",c:""},
-    {t:"but tonight, the monster was us.\n",c:"sig"},
-    {t:"— DLI OFFENSIVE // this was a drill.",c:"sig"}
-  ];
-  var full = lines.map(function(l){return l.t;}).join('');
-  if(REDUCE){ el.textContent=full; return; }
-  var li=0, ci=0;
-  var cur=document.createElement('span');cur.className='cursor';
-  el.appendChild(cur);
-  function type(){
-    if(li>=lines.length){return;}
-    var line=lines[li];
-    if(ci===0 && line.c==='sig'){ /* start a colored span */
-      var s=document.createElement('span');s.className='sig';s.dataset.k='1';el.insertBefore(s,cur);
-    }
-    if(ci<line.t.length){
-      var ch=line.t[ci];
-      var target = (line.c==='sig') ? el.querySelector('span.sig[data-k="1"]') : null;
-      if(target){target.textContent+=ch;} else {cur.insertAdjacentText('beforebegin',ch);}
-      ci++;
-      var d = ch==='\n' ? 320 : (28+Math.random()*70);
-      setTimeout(type,d);
-    } else {
-      if(line.c==='sig'){var t2=el.querySelector('span.sig[data-k="1"]');if(t2)t2.removeAttribute('data-k');}
-      li++;ci=0;setTimeout(type,line.t==='\n'?120:420);
-    }
-  }
-  setTimeout(type,700);
-})();
-</script>
+  </script>
+</body>
+</html>
