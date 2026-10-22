@@ -1,266 +1,1705 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Security Awareness — Simulation</title>
-<style>
-  :root{
-    --bg:#07070a; --panel:#101016; --panel2:#15151d; --line:#26262f;
-    --red:#e11d2a; --red2:#ff3b4e; --amber:#f5a623; --green:#28c76f; --cyan:#38bdf8;
-    --ink:#ececf1; --muted:#9a9aa7;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0}
-  body{
-    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
-    background:var(--bg); color:var(--ink); min-height:100vh; overflow-x:hidden;
-    transition:background .8s ease;
-  }
-  /* mood background per phase */
-  body.attack{
-    background:
-      radial-gradient(1200px 700px at 50% -10%, rgba(225,29,42,.22), transparent 60%),
-      radial-gradient(900px 600px at 50% 120%, rgba(0,0,0,.6), transparent 60%),
-      var(--bg);
-  }
-  body.reveal{
-    background:
-      radial-gradient(1200px 700px at 50% -10%, rgba(40,199,111,.18), transparent 60%),
-      radial-gradient(900px 600px at 50% 120%, rgba(0,0,0,.55), transparent 60%),
-      var(--bg);
-  }
-  body::after{ /* CRT scanlines */
-    content:""; position:fixed; inset:0; pointer-events:none; z-index:5; opacity:.10;
-    background:repeating-linear-gradient(to bottom, rgba(255,255,255,.14) 0 1px, transparent 1px 3px);
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abdallah Masri — Red Team Operator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Orbitron:wght@400;600;700;900&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- GSAP + ScrollTrigger -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        /* ── TOKENS ── */
+        :root {
+            --red:        #cc0000;
+            --red2:       #ff2020;
+            --red-dim:    rgba(204,0,0,0.15);
+            --red-glow:   rgba(204,0,0,0.35);
+            --amber:      #f59e0b;
+            --amber2:     #fbbf24;
+            --bg:         #080808;
+            --bg2:        #0c0c0c;
+            --bg3:        #111;
+            --glass:      rgba(255,255,255,0.025);
+            --glass-b:    rgba(255,255,255,0.06);
+            --glass-red:  rgba(204,0,0,0.06);
+            --glass-rb:   rgba(204,0,0,0.18);
+            --border:     #181818;
+            --border2:    #232323;
+            --text:       #888;
+            --text2:      #4a4a4a;
+            --text3:      #2e2e2e;
+            --white:      #efefef;
+            --mono:       'JetBrains Mono', monospace;
+            --orb:        'Orbitron', sans-serif;
+            --hero-font:  'Bebas Neue', sans-serif;
+        }
 
-  .stage{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px 18px}
-  .wrap{width:100%; max-width:760px; position:relative; z-index:10}
-  [hidden]{display:none !important}
+        /* ── RESET ── */
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior: smooth; }
 
-  .fade-in{animation:fade .6s ease both}
-  @keyframes fade{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 13px;
+            line-height: 1.7;
+            overflow-x: hidden;
+            cursor: crosshair;
+        }
 
-  .skull{font-size:64px; line-height:1; text-align:center; filter:drop-shadow(0 0 18px rgba(225,29,42,.7))}
-  .kicker{text-align:center; margin:16px 0 6px; color:var(--red2); letter-spacing:.4em; text-transform:uppercase; font-size:12px; font-weight:800}
-  h1{text-align:center; margin:0; font-weight:900; letter-spacing:.06em; font-size:clamp(34px,8vw,72px); color:#fff;
-     text-shadow:0 0 22px rgba(225,29,42,.55), 0 0 2px rgba(255,59,78,.9)}
-  .tagline{text-align:center; max-width:34em; margin:14px auto 0; color:#ffd7db; font-size:clamp(16px,2.4vw,20px); font-weight:600; line-height:1.5}
+        a, button { cursor: crosshair; }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--red); }
+        ::selection { background: var(--red); color: #fff; }
 
-  /* ---- attack loader ---- */
-  .terminal{margin:26px auto 0; max-width:620px; background:#05050a; border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 30px 60px rgba(0,0,0,.5)}
-  .term-bar{display:flex; align-items:center; gap:7px; padding:10px 14px; background:#0c0c13; border-bottom:1px solid var(--line)}
-  .term-bar i{width:11px; height:11px; border-radius:50%; display:inline-block}
-  .term-bar i:nth-child(1){background:#ff5f56}.term-bar i:nth-child(2){background:#ffbd2e}.term-bar i:nth-child(3){background:#27c93f}
-  .term-bar span{margin-left:8px; color:#6b6b77; font-size:12px; font-family:"Cascadia Code",Consolas,Menlo,monospace}
-  .log{padding:14px 16px; min-height:188px; font-family:"Cascadia Code",Consolas,Menlo,monospace; font-size:13px; line-height:1.9; color:#c8ffd0}
-  .log div{white-space:pre-wrap}
-  .log .t{color:#5b6b7f}
-  .log .ok{color:var(--green)}
-  .log .bad{color:var(--red2)}
-  .caret{display:inline-block; width:8px; background:var(--green); animation:blink 1s steps(1) infinite}
-  @keyframes blink{50%{opacity:0}}
+        /* ── NOISE GRAIN ── */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            pointer-events: none; z-index: 9999;
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+            background-size: 200px 200px;
+            animation: grain 0.5s steps(2) infinite;
+        }
+        @keyframes grain {
+            0%   { background-position: 0 0; }
+            25%  { background-position: -20px 10px; }
+            50%  { background-position: 15px -10px; }
+            75%  { background-position: -10px 20px; }
+            100% { background-position: 5px -5px; }
+        }
 
-  .bar-wrap{max-width:620px; margin:16px auto 0}
-  .bar-top{display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); margin-bottom:7px; font-family:Consolas,Menlo,monospace}
-  .bar-top b{color:var(--red2)}
-  .bar{height:12px; border-radius:999px; background:#17171f; border:1px solid var(--line); overflow:hidden}
-  .bar > i{display:block; height:100%; width:0; border-radius:999px; background:linear-gradient(90deg,var(--red),var(--red2))}
-  .skip{display:block; text-align:center; margin:18px auto 0; color:#5b6b7f; font-size:12px; background:none; border:0; cursor:pointer; text-decoration:underline}
-  .skip:hover{color:var(--muted)}
+        /* ── NAV ── */
+        nav {
+            position: fixed; top:0; left:0; right:0; z-index:1000;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 3rem; height: 58px;
+            background: rgba(8,8,8,0.88);
+            backdrop-filter: blur(24px) saturate(180%);
+            border-bottom: 1px solid rgba(204,0,0,0.12);
+        }
 
-  /* ---- reveal ---- */
-  .surprise-wrap{text-align:center}
-  .badge{display:inline-block; margin:0 auto 10px; padding:6px 14px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:#04170c; background:var(--green)}
-  h1.surprise{color:#fff; text-shadow:0 0 26px rgba(40,199,111,.55)}
-  .relief{margin:24px auto 0; max-width:620px; background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--green);
-          border-radius:12px; padding:16px 18px; font-size:14.5px; line-height:1.6; text-align:left}
-  .relief b{color:#fff}
+        .nav-logo {
+            font-family: var(--orb);
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            color: var(--white);
+            text-decoration: none;
+            display: flex; align-items: center; gap: 0.75rem;
+        }
+        .nav-logo .brk { color: var(--red); }
 
-  .card{margin:22px auto 0; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:0 30px 60px rgba(0,0,0,.45); text-align:left}
-  .card h2{margin:0; padding:18px 22px; font-size:16px; background:linear-gradient(180deg,var(--panel2),transparent); border-bottom:1px solid var(--line); color:#fff; display:flex; align-items:center; gap:10px}
-  .card h2 .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
-  .what{padding:18px 22px; color:var(--muted); font-size:14.5px; line-height:1.65; border-bottom:1px solid var(--line)}
-  .what b{color:var(--ink)}
-  ol.steps{list-style:none; margin:0; padding:10px 14px 18px}
-  ol.steps li{display:flex; gap:14px; padding:14px; border-radius:11px; align-items:flex-start}
-  ol.steps li + li{border-top:1px dashed var(--line)}
-  .num{flex:0 0 34px; height:34px; width:34px; border-radius:9px; background:rgba(40,199,111,.14); color:var(--green); border:1px solid rgba(40,199,111,.4); display:grid; place-items:center; font-weight:900; font-size:15px}
-  .step-t{font-weight:700; color:#fff; font-size:15px; margin-bottom:2px}
-  .step-d{color:var(--muted); font-size:13.5px; line-height:1.55}
-  .step-d code{background:#000;border:1px solid var(--line);padding:1px 6px;border-radius:5px;color:#ffd7db;font-size:12.5px}
-  .report{margin:22px auto 6px; max-width:620px; text-align:center; background:linear-gradient(180deg, rgba(245,166,35,.12), transparent); border:1px solid rgba(245,166,35,.35); border-radius:12px; padding:18px}
-  .report b{color:#fff}
-  .report .btn{display:inline-block; margin-top:12px; background:var(--amber); color:#241a00; font-weight:800; text-decoration:none; padding:11px 20px; border-radius:10px; font-size:14.5px}
-  .foot{text-align:center; color:#6b6b77; font-size:12.5px; margin:22px auto 0; line-height:1.6}
+        .nav-active {
+            display: flex; align-items: center; gap: 0.45rem;
+            font-size: 0.55rem; letter-spacing: 0.2em;
+            color: var(--red);
+            font-family: var(--mono);
+        }
+        .pulse-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--red);
+            animation: pulse-dot 1.4s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes pulse-dot {
+            0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(204,0,0,0.6); }
+            50%     { opacity:0.6; box-shadow: 0 0 0 5px rgba(204,0,0,0); }
+        }
 
-  @media (max-width:430px){
-    h1{font-size:7.2vw; letter-spacing:.01em}
-    .kicker{letter-spacing:.2em; font-size:10.5px}
-    .skull{font-size:52px}
-  }
-  @media (prefers-reduced-motion: no-preference){
-    .skull{animation:flicker 4.5s infinite}
-    #phase1 h1{animation:glitch 3.4s infinite}
-    @keyframes flicker{0%,19%,21%,23%,100%{opacity:1}20%,22%{opacity:.35}}
-    @keyframes glitch{
-      0%,92%,100%{text-shadow:0 0 22px rgba(225,29,42,.55),0 0 2px rgba(255,59,78,.9)}
-      93%{text-shadow:-2px 0 var(--red2),2px 0 var(--cyan)}
-      95%{text-shadow:2px 0 var(--red2),-2px 0 var(--cyan)}
-      97%{text-shadow:-1px 0 var(--red2),1px 0 var(--cyan)}
-    }
-  }
-  /* If JavaScript is off, skip the theatrics and show the lesson. */
-  .no-js #phase1{display:none}
-  .no-js #phase2{display:block !important}
-</style>
+        .nav-links { display: flex; gap: 2.5rem; list-style: none; }
+        .nav-links a {
+            font-family: var(--orb); font-size: 0.6rem; font-weight: 600;
+            letter-spacing: 0.2em; text-transform: uppercase;
+            color: var(--text2); text-decoration: none;
+            transition: color 0.25s;
+            position: relative;
+        }
+        .nav-links a::after {
+            content: '';
+            position: absolute; bottom: -4px; left: 0; right: 0;
+            height: 1px; background: var(--red);
+            transform: scaleX(0); transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+        .nav-links a:hover { color: var(--white); }
+        .nav-links a:hover::after { transform: scaleX(1); }
+
+        /* ── HERO ── */
+        .hero {
+            position: relative; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+
+        #scope-canvas {
+            position: absolute; inset: 0;
+            width:100%; height:100%;
+            opacity: 0.7;
+        }
+
+        /* deep vignette */
+        .hero::after {
+            content: '';
+            position: absolute; inset: 0;
+            background:
+                radial-gradient(ellipse 65% 70% at 50% 50%, transparent 20%, rgba(8,8,8,0.7) 70%, rgba(8,8,8,0.98) 100%),
+                linear-gradient(to bottom, rgba(8,8,8,0.6) 0%, transparent 15%, transparent 85%, rgba(8,8,8,0.9) 100%);
+            pointer-events: none; z-index:1;
+        }
+
+        .hero-content {
+            position: relative; z-index:2;
+            text-align: center; padding: 2rem;
+            max-width: 900px; width: 100%;
+        }
+
+        /* eyebrow */
+        .eyebrow {
+            display: inline-flex; align-items: center; gap: 1rem;
+            margin-bottom: 1.5rem;
+            opacity:0; animation: fadeUp 0.7s 0.2s forwards;
+        }
+        .eyebrow-line { height:1px; width:48px; background: var(--red); opacity:0.7; }
+        .eyebrow-text {
+            font-family: var(--mono); font-size: 0.6rem;
+            letter-spacing: 0.4em; color: var(--amber);
+            text-transform: uppercase;
+        }
+
+        /* hero name */
+        .hero-name {
+            font-family: var(--hero-font);
+            font-size: clamp(5rem, 14vw, 11rem);
+            line-height: 0.88;
+            letter-spacing: 0.01em;
+            color: var(--white);
+            margin-bottom: 0.2rem;
+            position: relative;
+            opacity:0; animation: fadeUp 0.8s 0.35s forwards;
+        }
+
+        .hero-name-line2 {
+            font-family: var(--hero-font);
+            font-size: clamp(5rem, 14vw, 11rem);
+            line-height: 0.88;
+            letter-spacing: 0.01em;
+            color: transparent;
+            -webkit-text-stroke: 1px rgba(255,255,255,0.35);
+            margin-bottom: 0.5rem;
+            position: relative;
+            opacity:0; animation: fadeUp 0.8s 0.45s forwards;
+        }
+
+        /* glitch layers */
+        .glitch-wrap { position: relative; display: inline-block; }
+        .glitch-wrap::before,
+        .glitch-wrap::after {
+            content: attr(data-text);
+            position: absolute; top:0; left:0;
+            width:100%; height:100%;
+            font-family: inherit; font-size: inherit;
+        }
+        .glitch-wrap::before {
+            color: var(--red);
+            animation: glitch-r 6s infinite;
+            clip-path: polygon(0 15%, 100% 15%, 100% 40%, 0 40%);
+        }
+        .glitch-wrap::after {
+            color: var(--amber);
+            animation: glitch-a 6s infinite;
+            clip-path: polygon(0 60%, 100% 60%, 100% 82%, 0 82%);
+        }
+        @keyframes glitch-r {
+            0%,80%,100% { transform:translate(0); opacity:0; }
+            82% { transform:translate(-6px, 1px); opacity:1; }
+            84% { transform:translate(6px, -1px); opacity:1; }
+            86% { transform:translate(-3px, 2px); opacity:1; }
+            88% { transform:translate(0); opacity:0; }
+        }
+        @keyframes glitch-a {
+            0%,83%,100% { transform:translate(0); opacity:0; }
+            85% { transform:translate(5px, -2px); opacity:0.8; }
+            87% { transform:translate(-5px, 1px); opacity:0.8; }
+            89% { transform:translate(2px, 0); opacity:0.8; }
+            91% { transform:translate(0); opacity:0; }
+        }
+
+        /* codename */
+        .hero-codename {
+            font-family: var(--orb); font-size: clamp(0.65rem, 1.5vw, 0.9rem);
+            font-weight: 600; letter-spacing: 0.35em;
+            color: var(--red); text-transform: uppercase;
+            margin-bottom: 1rem;
+            opacity:0; animation: fadeUp 0.7s 0.55s forwards;
+        }
+
+        /* typewriter */
+        .hero-type {
+            font-size: 0.8rem; letter-spacing: 0.1em;
+            color: var(--text); min-height: 1.4em;
+            margin-bottom: 3rem;
+            opacity:0; animation: fadeUp 0.7s 0.7s forwards;
+        }
+        .cursor-block {
+            display: inline-block;
+            width: 8px; height: 0.9em;
+            background: var(--amber);
+            margin-left: 2px; vertical-align: text-bottom;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+        /* stats intel panel */
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border: 1px solid var(--glass-rb);
+            background: var(--glass-red);
+            backdrop-filter: blur(20px) saturate(150%);
+            margin-bottom: 2.5rem;
+            position: relative;
+            opacity:0; animation: fadeUp 0.7s 0.85s forwards;
+        }
+        .stats-panel::before {
+            content: 'INTEL BRIEF';
+            position: absolute; top: -1px; left: 50%;
+            transform: translateX(-50%) translateY(-50%);
+            background: var(--red); color: #fff;
+            font-family: var(--orb); font-size: 0.5rem;
+            letter-spacing: 0.3em; padding: 0.2rem 0.8rem;
+            white-space: nowrap;
+        }
+
+        .stat-cell {
+            padding: 1.5rem 1rem;
+            border-right: 1px solid var(--glass-rb);
+            text-align: center;
+        }
+        .stat-cell:last-child { border-right: none; }
+
+        .stat-n {
+            font-family: var(--orb); font-size: 1.8rem; font-weight: 900;
+            color: var(--red); line-height: 1; display: block;
+            letter-spacing: 0.05em;
+        }
+        .stat-n.amber { color: var(--amber); }
+        .stat-l {
+            font-size: 0.55rem; letter-spacing: 0.18em;
+            color: var(--text2); text-transform: uppercase;
+            margin-top: 0.35rem; display: block;
+        }
+
+        /* hero CTAs */
+        .hero-btns {
+            display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
+            opacity:0; animation: fadeUp 0.7s 1s forwards;
+        }
+
+        .btn {
+            font-family: var(--orb); font-size: 0.7rem; font-weight: 700;
+            letter-spacing: 0.25em; text-transform: uppercase;
+            text-decoration: none; padding: 0.9rem 2.5rem;
+            border: 1px solid; display: inline-block;
+            position: relative; overflow: hidden;
+            transition: color 0.35s;
+        }
+        .btn::before {
+            content: '';
+            position: absolute; top:0; left:-102%;
+            width:100%; height:100%;
+            transition: left 0.35s ease;
+        }
+        .btn:hover::before { left: 0; }
+
+        .btn-red { color: var(--red); border-color: var(--red); }
+        .btn-red::before { background: var(--red); }
+        .btn-red:hover { color: #fff; box-shadow: 0 0 40px var(--red-glow); }
+
+        .btn-ghost { color: var(--text2); border-color: var(--border2); }
+        .btn-ghost::before { background: var(--border2); }
+        .btn-ghost:hover { color: var(--white); }
+
+        @keyframes fadeUp {
+            from { opacity:0; transform:translateY(28px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+
+        /* ── SECTION WRAPPER ── */
+        .wrap { max-width: 1060px; margin: 0 auto; padding: 7rem 2rem; }
+
+        /* section header */
+        .sh { margin-bottom: 3.5rem; }
+        .sh-top {
+            display: flex; align-items: center; gap: 1rem;
+            margin-bottom: 0.6rem;
+        }
+        .sh-rule { height:1px; width:36px; background: var(--red); flex-shrink:0; }
+        .sh-eyebrow {
+            font-family: var(--mono); font-size: 0.6rem;
+            letter-spacing: 0.35em; color: var(--red); text-transform: uppercase;
+        }
+        .sh-title {
+            font-family: var(--orb); font-size: clamp(1.8rem, 4vw, 3rem);
+            font-weight: 900; color: var(--white);
+            letter-spacing: 0.08em; line-height: 1;
+        }
+        .sh-bar {
+            margin-top: 1rem; height: 1px; max-width: 180px;
+            background: linear-gradient(to right, var(--red), transparent);
+        }
+
+        /* ── GLASSMORPHISM PANEL ── */
+        .glass-panel {
+            background: var(--glass-red);
+            backdrop-filter: blur(24px) saturate(160%);
+            border: 1px solid var(--glass-rb);
+            position: relative;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.04),
+                0 0 60px rgba(204,0,0,0.05),
+                0 4px 24px rgba(0,0,0,0.5);
+        }
+
+        /* animated corner brackets */
+        .glass-panel::before,
+        .glass-panel::after {
+            content: '';
+            position: absolute;
+            width: 18px; height: 18px;
+            transition: all 0.3s;
+        }
+        .glass-panel::before {
+            top: -1px; left: -1px;
+            border-top: 2px solid var(--red);
+            border-left: 2px solid var(--red);
+        }
+        .glass-panel::after {
+            bottom: -1px; right: -1px;
+            border-bottom: 2px solid var(--red);
+            border-right: 2px solid var(--red);
+        }
+        .glass-panel:hover::before,
+        .glass-panel:hover::after {
+            width: 28px; height: 28px;
+        }
+
+        /* extra corners via wrapper pseudo */
+        .panel-inner::before,
+        .panel-inner::after {
+            content: '';
+            position: absolute;
+            width: 18px; height: 18px;
+            transition: all 0.3s;
+        }
+        .panel-inner { position: relative; }
+        .panel-inner::before {
+            top: -1px; right: -1px;
+            border-top: 2px solid rgba(204,0,0,0.35);
+            border-right: 2px solid rgba(204,0,0,0.35);
+        }
+        .panel-inner::after {
+            bottom: -1px; left: -1px;
+            border-bottom: 2px solid rgba(204,0,0,0.35);
+            border-left: 2px solid rgba(204,0,0,0.35);
+        }
+
+        /* ── DOSSIER ── */
+        .dossier-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.75rem 1.25rem;
+            background: rgba(204,0,0,0.08);
+            border-bottom: 1px solid var(--glass-rb);
+        }
+        .panel-htitle {
+            font-family: var(--orb); font-size: 0.6rem;
+            font-weight: 700; letter-spacing: 0.25em;
+            color: var(--text2); text-transform: uppercase;
+        }
+        .panel-stamp {
+            font-family: var(--mono); font-size: 0.55rem;
+            letter-spacing: 0.2em; color: var(--amber);
+            border: 1px solid rgba(245,158,11,0.4);
+            padding: 0.15rem 0.5rem;
+            transform: rotate(-1.5deg);
+            opacity: 0.85;
+        }
+
+        .panel-body { padding: 1.5rem 1.25rem; }
+
+        .d-row {
+            display: flex; align-items: baseline;
+            gap: 0.5rem; margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .d-key {
+            font-family: var(--orb); font-size: 0.58rem;
+            font-weight: 700; letter-spacing: 0.12em;
+            color: var(--amber); text-transform: uppercase;
+            min-width: 72px; flex-shrink: 0;
+        }
+        .d-sep { color: var(--text2); font-size: 0.8rem; flex-shrink:0; }
+        .d-val { color: var(--text); font-size: 0.8rem; }
+        .d-val.red { color: var(--red); }
+        .d-val.wh  { color: var(--white); font-weight: 600; }
+
+        .d-divider {
+            height: 1px; background: var(--border);
+            margin: 1rem 0;
+        }
+
+        /* redacted */
+        .redacted {
+            background: var(--text2);
+            color: transparent;
+            border-radius: 2px;
+            transition: all 0.4s;
+            cursor: default;
+            user-select: none;
+            letter-spacing: 0.05em;
+            display: inline-block;
+            padding: 0 0.1em;
+        }
+        .redacted:hover {
+            background: transparent;
+            color: var(--red);
+            text-shadow: 0 0 8px var(--red-glow);
+        }
+
+        /* timeline */
+        .timeline { position: relative; padding-left: 1.25rem; }
+        .timeline::before {
+            content: '';
+            position: absolute; left:0; top:0.5rem; bottom:0;
+            width: 1px;
+            background: linear-gradient(to bottom, var(--red), rgba(204,0,0,0.05));
+        }
+        .tl-item {
+            position: relative; margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .tl-item:last-child { margin-bottom:0; padding-bottom:0; border-bottom:none; }
+        .tl-item::before {
+            content: '';
+            position: absolute; left: -1.25rem; top: 0.5rem;
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--red);
+            box-shadow: 0 0 8px var(--red-glow);
+        }
+        .tl-date  { font-size:0.58rem; letter-spacing:0.2em; color:var(--amber); text-transform:uppercase; }
+        .tl-role  { color:var(--white); font-weight:700; font-size:0.88rem; margin:0.2rem 0; }
+        .tl-place { color:var(--text); font-size:0.78rem; }
+
+        /* ── CERTIFICATIONS ── */
+        .certs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+        }
+
+        .cert-cell {
+            background: var(--bg2);
+            padding: 1.4rem;
+            position: relative;
+            overflow: hidden;
+            transition: background 0.3s;
+        }
+        .cert-cell::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(to right, var(--red), var(--amber));
+            transform: scaleX(0); transform-origin: left;
+            transition: transform 0.4s ease;
+        }
+        .cert-cell::after {
+            content: attr(data-cert);
+            position: absolute; right: -0.5rem; bottom: -1rem;
+            font-family: var(--hero-font); font-size: 4rem;
+            color: rgba(204,0,0,0.04);
+            letter-spacing: 0.05em;
+            pointer-events: none;
+            transition: color 0.3s;
+        }
+        .cert-cell:hover { background: rgba(204,0,0,0.04); }
+        .cert-cell:hover::before { transform: scaleX(1); }
+        .cert-cell:hover::after   { color: rgba(204,0,0,0.09); }
+
+        .cc-name {
+            font-family: var(--orb); font-size: 1.25rem; font-weight: 900;
+            color: var(--red); letter-spacing: 0.08em; margin-bottom: 0.3rem;
+            position: relative; z-index: 1;
+        }
+        .cc-issuer {
+            font-size: 0.6rem; letter-spacing: 0.15em;
+            color: var(--text2); text-transform: uppercase;
+            position: relative; z-index: 1;
+        }
+        .cc-domain {
+            font-size: 0.74rem; color: var(--text);
+            margin-top: 0.6rem; line-height: 1.45;
+            position: relative; z-index: 1;
+        }
+
+        /* ── RANKINGS ── */
+        .rank-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .rank-card {
+            background: var(--glass-red);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-rb);
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: box-shadow 0.4s, border-color 0.4s;
+        }
+        /* diagonal accent shapes */
+        .rank-card::before {
+            content: '';
+            position: absolute; top:0; right:0;
+            width: 0; height: 0;
+            border-style: solid;
+            border-width: 0 80px 80px 0;
+            border-color: transparent rgba(204,0,0,0.1) transparent transparent;
+            transition: border-width 0.4s;
+        }
+        .rank-card::after {
+            content: '';
+            position: absolute; bottom:0; left:0;
+            width: 0; height: 0;
+            border-style: solid;
+            border-width: 0 0 60px 60px;
+            border-color: transparent transparent rgba(204,0,0,0.07) transparent;
+        }
+        .rank-card:hover {
+            box-shadow: 0 0 60px rgba(204,0,0,0.12), 0 0 120px rgba(204,0,0,0.05);
+            border-color: rgba(204,0,0,0.4);
+        }
+        .rank-card:hover::before { border-width: 0 100px 100px 0; }
+
+        .rank-platform {
+            font-family: var(--orb); font-size: 0.6rem; font-weight: 600;
+            letter-spacing: 0.3em; color: var(--text2); text-transform: uppercase;
+            margin-bottom: 1.5rem;
+        }
+        .rank-num {
+            font-family: var(--orb); font-size: 4.5rem; font-weight: 900;
+            color: var(--red); line-height: 1; letter-spacing: 0.05em;
+        }
+        .rank-num .rank-suffix { font-size: 1.8rem; color: var(--text2); }
+        .rank-num.amber { color: var(--amber); }
+        .rank-label { font-size: 0.82rem; color: var(--text); margin-top: 0.6rem; }
+        .rank-sub   { font-size: 0.68rem; color: var(--text2); margin-top: 0.25rem; }
+
+        /* ── PROJECTS ── */
+        .proj-grid { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+
+        .proj-card {
+            background: var(--bg2);
+            padding: 2.25rem;
+            position: relative; overflow: hidden;
+            transition: background 0.35s;
+        }
+        /* left red border reveal */
+        .proj-card::before {
+            content: '';
+            position: absolute; left:0; top:0; bottom:0;
+            width: 3px; background: linear-gradient(to bottom, var(--red), var(--amber));
+            transform: scaleY(0); transform-origin: bottom;
+            transition: transform 0.45s ease;
+        }
+        /* radial mouse glow */
+        .proj-card::after {
+            content: '';
+            position: absolute; inset:0;
+            background: radial-gradient(500px circle at var(--mx,50%) var(--my,50%), rgba(204,0,0,0.06), transparent 45%);
+            opacity:0; transition: opacity 0.35s;
+            pointer-events: none;
+        }
+        .proj-card:hover { background: rgba(204,0,0,0.025); }
+        .proj-card:hover::before { transform: scaleY(1); }
+        .proj-card:hover::after  { opacity: 1; }
+
+        /* oversized number */
+        .proj-bg-num {
+            position: absolute; right: 1.5rem; top: 50%;
+            transform: translateY(-50%);
+            font-family: var(--hero-font);
+            font-size: 8rem; line-height: 1;
+            color: rgba(204,0,0,0.05);
+            letter-spacing: 0.05em;
+            pointer-events: none; user-select: none;
+            transition: color 0.35s;
+        }
+        .proj-card:hover .proj-bg-num { color: rgba(204,0,0,0.12); }
+
+        .proj-inner { position: relative; z-index:1; }
+        .proj-status {
+            display: inline-block;
+            font-family: var(--orb); font-size: 0.55rem; font-weight: 700;
+            letter-spacing: 0.2em; color: var(--red); text-transform: uppercase;
+            border: 1px solid rgba(204,0,0,0.35);
+            padding: 0.2rem 0.65rem; margin-bottom: 0.75rem;
+        }
+        .proj-status.amber { color: var(--amber); border-color: rgba(245,158,11,0.35); }
+
+        .proj-name {
+            font-family: var(--orb); font-size: 1.3rem; font-weight: 900;
+            color: var(--white); letter-spacing: 0.08em;
+            margin-bottom: 0.8rem; line-height: 1.1;
+        }
+        .proj-desc {
+            font-size: 0.8rem; color: var(--text); line-height: 1.8;
+            margin-bottom: 1.25rem; max-width: 620px;
+        }
+
+        .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .tag {
+            font-size: 0.6rem; letter-spacing: 0.1em;
+            padding: 0.22rem 0.65rem;
+            background: var(--bg3); border: 1px solid var(--border2);
+            color: var(--text2); text-transform: uppercase;
+            transition: border-color 0.25s, color 0.25s;
+        }
+        .proj-card:hover .tag { border-color: rgba(204,0,0,0.25); color: var(--text); }
+
+        /* ── CONTACT ── */
+        .contact-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 1px; background: var(--border); border: 1px solid var(--border);
+        }
+
+        .contact-link {
+            display: flex; align-items: center; gap: 1.25rem;
+            padding: 1.6rem; background: var(--bg2);
+            text-decoration: none; color: var(--text);
+            position: relative; overflow: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+        .contact-link::before {
+            content: '';
+            position: absolute; top:0; left:0; right:0; height:2px;
+            background: linear-gradient(to right, var(--red), var(--amber));
+            transform: scaleX(0); transform-origin: left;
+            transition: transform 0.35s ease;
+        }
+        .contact-link:hover { background: rgba(204,0,0,0.04); color: var(--white); }
+        .contact-link:hover::before { transform: scaleX(1); }
+
+        .c-icon-box {
+            width: 44px; height: 44px; flex-shrink:0;
+            border: 1px solid var(--border2);
+            display: flex; align-items: center; justify-content: center;
+            background: var(--bg3);
+            transition: border-color 0.3s, background 0.3s;
+        }
+        .contact-link:hover .c-icon-box {
+            border-color: var(--red);
+            background: rgba(204,0,0,0.08);
+        }
+        .c-icon-box svg { width:18px; height:18px; fill:currentColor; color:var(--text2); transition: color 0.3s; }
+        .contact-link:hover .c-icon-box svg { color: var(--red); }
+
+        .c-platform { font-family:var(--orb); font-size:0.55rem; letter-spacing:0.2em; color:var(--text2); text-transform:uppercase; }
+        .c-handle   { font-size:0.88rem; font-weight:600; margin-top:0.2rem; }
+
+        /* ── FOOTER ── */
+        footer {
+            border-top: 1px solid rgba(204,0,0,0.1);
+            padding: 2.5rem 3rem;
+            display: flex; align-items: center;
+            justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+            background: rgba(204,0,0,0.02);
+        }
+        .footer-name {
+            font-family: var(--orb); font-size: 0.8rem; font-weight: 700;
+            letter-spacing: 0.25em; color: var(--text2);
+        }
+        .footer-name span { color: var(--red); }
+        .footer-meta {
+            font-size: 0.65rem; letter-spacing: 0.12em;
+            color: var(--text2); text-align: right;
+        }
+
+        /* ── REVEAL ── */
+        .reveal {
+            opacity:0; transform:translateY(32px);
+            transition: opacity 0.65s ease, transform 0.65s ease;
+        }
+        .reveal.visible { opacity:1; transform:translateY(0); }
+
+        /* ── MOBILE ── */
+        @media(max-width:700px){
+            .nav-links { display:none; }
+            .dossier-grid, .rank-grid, .contact-grid { grid-template-columns:1fr; }
+            .stats-panel { grid-template-columns: 1fr 1fr; }
+            .stat-cell:nth-child(2) { border-right: none; }
+        }
+        @media(max-width:440px){
+            .stats-panel { grid-template-columns: 1fr; }
+            .stat-cell { border-right:none; border-bottom:1px solid var(--glass-rb); }
+        }
+
+        /* ── HERO GRID (two-column with photo) ── */
+        .hero-content {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 5rem;
+            align-items: center;
+            max-width: 1140px;
+            width: 100%;
+            padding: 2rem 2.5rem;
+            text-align: left;
+        }
+        .hero-text-col { display: flex; flex-direction: column; align-items: flex-start; }
+        .eyebrow       { justify-content: flex-start; }
+        .hero-btns     { justify-content: flex-start; }
+        .stats-panel   { width: 100%; }
+
+        /* ── PHOTO FRAME ── */
+        .hero-photo-col {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .photo-wrap {
+            position: relative;
+            width: 300px;
+            flex-shrink: 0;
+        }
+
+        /* outer glow halo */
+        .photo-wrap::before {
+            content: '';
+            position: absolute;
+            inset: -20px;
+            background: radial-gradient(ellipse, rgba(204,0,0,0.18) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .photo-frame {
+            position: relative;
+            width: 300px;
+            height: 370px;
+            overflow: hidden;
+            clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+        }
+
+        .hero-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 25%;
+            display: block;
+            filter: contrast(1.08) brightness(0.92) saturate(0.9);
+            transition: filter 0.5s;
+        }
+        .photo-wrap:hover .hero-photo {
+            filter: contrast(1.05) brightness(1) saturate(1.05);
+        }
+
+        /* red tint overlay */
+        .photo-overlay {
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(to bottom, rgba(204,0,0,0.08) 0%, transparent 40%, transparent 70%, rgba(8,8,8,0.6) 100%),
+                linear-gradient(160deg, rgba(204,0,0,0.05) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        /* animated scan line over photo */
+        .photo-scan {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom,
+                transparent 0%,
+                rgba(204,0,0,0.06) 50%,
+                transparent 100%);
+            background-size: 100% 200%;
+            animation: photo-scan 3s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes photo-scan {
+            0%   { background-position: 0 -100%; }
+            100% { background-position: 0 200%; }
+        }
+
+        /* corner bracket accents on photo */
+        .photo-corner {
+            position: absolute;
+            width: 22px; height: 22px;
+            z-index: 2;
+        }
+        .photo-corner.tl { top: 0; left: 0; border-top: 2px solid var(--red); border-left: 2px solid var(--red); }
+        .photo-corner.br { bottom: 0; right: 0; border-bottom: 2px solid var(--red); border-right: 2px solid var(--red); }
+        .photo-corner.tr { top: 0; right: 0; border-top: 2px solid rgba(204,0,0,0.4); border-right: 2px solid rgba(204,0,0,0.4); }
+        .photo-corner.bl { bottom: 0; left: 0; border-bottom: 2px solid rgba(204,0,0,0.4); border-left: 2px solid rgba(204,0,0,0.4); }
+
+        /* ID label below photo */
+        .photo-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--glass-red);
+            border: 1px solid var(--glass-rb);
+        }
+        .photo-label-id {
+            font-family: var(--orb);
+            font-size: 0.52rem; font-weight: 700;
+            letter-spacing: 0.2em; color: var(--red);
+        }
+        .photo-label-status {
+            font-size: 0.52rem; letter-spacing: 0.15em; color: var(--amber);
+            display: flex; align-items: center; gap: 0.4rem;
+        }
+        .photo-label-status::before {
+            content: '';
+            width: 5px; height: 5px; border-radius: 50%;
+            background: var(--amber);
+            animation: pulse-dot 1.4s ease-in-out infinite;
+        }
+
+        /* ── SKILL MATRIX ── */
+        .skills-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        .chart-panel {
+            background: var(--glass-red);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-rb);
+            padding: 1.75rem;
+            position: relative;
+        }
+        .chart-panel::before {
+            content: '';
+            position: absolute; top:-1px; left:-1px;
+            width:18px; height:18px;
+            border-top: 2px solid var(--red);
+            border-left: 2px solid var(--red);
+        }
+        .chart-panel::after {
+            content: '';
+            position: absolute; bottom:-1px; right:-1px;
+            width:18px; height:18px;
+            border-bottom: 2px solid var(--red);
+            border-right: 2px solid var(--red);
+        }
+        .chart-title {
+            font-family: var(--orb); font-size: 0.65rem; font-weight: 700;
+            letter-spacing: 0.2em; color: var(--text2); text-transform: uppercase;
+            margin-bottom: 1.25rem;
+            display: flex; align-items: center; gap: 0.6rem;
+        }
+        .chart-title::before {
+            content: '';
+            width: 20px; height: 1px;
+            background: var(--red);
+            flex-shrink: 0;
+        }
+        .chart-wrap { position: relative; height: 260px; }
+
+        /* ── MOBILE OVERRIDES ── */
+        @media(max-width:860px){
+            .hero-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+                gap: 3rem;
+            }
+            .hero-text-col { align-items: center; }
+            .eyebrow { justify-content: center; }
+            .hero-btns { justify-content: center; }
+            .hero-photo-col { order: -1; }
+            .photo-wrap { width: 220px; }
+            .photo-frame { width: 220px; height: 270px; }
+            .skills-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ── PREFERS REDUCED MOTION ── */
+        @media(prefers-reduced-motion: reduce){
+            *, *::before, *::after { animation-duration:0.01ms !important; transition-duration:0.01ms !important; }
+        }
+    </style>
 </head>
-<body class="attack no-js">
-  <!-- PHASE 1 — the "attack" (theatrical; nothing is actually happening) -->
-  <section class="stage" id="phase1">
-    <div class="wrap">
-      <div class="skull">☠️</div>
-      <div class="kicker">⚠ Data breach in progress</div>
-      <h1>CONGRATULATIONS</h1>
-      <p class="tagline">Your data has been stolen — you just became the reason your organization could be hacked.</p>
+<body>
 
-      <div class="terminal" role="log" aria-live="polite" aria-label="Attack progress">
-        <div class="term-bar"><i></i><i></i><i></i><span>exfiltration@attacker: ~/harvest</span></div>
-        <div class="log" id="log"></div>
-      </div>
-
-      <div class="bar-wrap">
-        <div class="bar-top"><span id="status">Stealing your data…</span><b id="pct">0%</b></div>
-        <div class="bar"><i id="fill"></i></div>
-      </div>
-
-      <button class="skip" id="skip" type="button">Skip →</button>
+<!-- ── NAV ── -->
+<nav>
+    <a href="#" class="nav-logo" aria-label="Home">
+        <span class="brk">[</span>ELTROJAN<span class="brk">]</span>
+    </a>
+    <div class="nav-active">
+        <div class="pulse-dot" aria-hidden="true"></div>
+        ACTIVE
     </div>
-  </section>
+    <ul class="nav-links" role="navigation" aria-label="Main navigation">
+        <li><a href="#dossier">DOSSIER</a></li>
+        <li><a href="#certs">CERTS</a></li>
+        <li><a href="#skills">SKILLS</a></li>
+        <li><a href="#rankings">RANKINGS</a></li>
+        <li><a href="#ops">OPS</a></li>
+        <li><a href="#contact">CONTACT</a></li>
+    </ul>
+</nav>
 
-  <!-- PHASE 2 — the reveal + lesson -->
-  <section class="stage" id="phase2" hidden>
-    <div class="wrap">
-      <div class="surprise-wrap">
-        <span class="badge">Gotcha</span>
-        <div class="skull" style="filter:drop-shadow(0 0 18px rgba(40,199,111,.6))">🎉</div>
-        <h1 class="surprise">SURPRISE!</h1>
-        <p class="tagline" style="color:#c7f6d6">It's a phishing simulation — not a real attack.</p>
-      </div>
+<!-- ── HERO ── -->
+<section class="hero" aria-label="Hero section">
+    <canvas id="scope-canvas" aria-hidden="true"></canvas>
 
-      <div class="relief">
-        <b>Breathe.</b> Nothing was actually stolen, there was no real breach, and your password was
-        <b>never stored</b> (the platform keeps only a redacted length marker). But in a <b>real</b> attack,
-        the details you just entered would already be in an attacker's hands — enough to read your email,
-        reach internal systems, and move deeper into the organization. Here's how to make sure the next one
-        doesn't fool you.
-      </div>
+    <div class="hero-content">
 
-      <section class="card">
-        <h2><span class="dot"></span> What just happened</h2>
-        <div class="what">
-          You received a message that looked legitimate, followed its link, and <b>entered your information on a
-          fake page</b> controlled by this test. That single submission is all an attacker needs to begin a breach —
-          no malware required.
+        <!-- LEFT: text content -->
+        <div class="hero-text-col">
+            <div class="eyebrow" aria-hidden="true">
+                <div class="eyebrow-line"></div>
+                <span class="eyebrow-text">Operator Profile // Clearance: Red</span>
+                <div class="eyebrow-line"></div>
+            </div>
+
+            <div class="hero-codename">CODENAME: ELTROJAN // 0x07</div>
+
+            <h1>
+                <div class="hero-name">
+                    <span class="glitch-wrap" data-text="ABDALLAH">ABDALLAH</span>
+                </div>
+                <div class="hero-name-line2">
+                    <span class="glitch-wrap" data-text="MASRI" style="-webkit-text-stroke:1px rgba(255,255,255,0.3)">MASRI</span>
+                </div>
+            </h1>
+
+            <div class="hero-type" aria-live="polite">
+                <span id="typewriter"></span><span class="cursor-block" aria-hidden="true"></span>
+            </div>
+
+            <div class="stats-panel" role="list" aria-label="Key statistics">
+                <div class="stat-cell" role="listitem">
+                    <span class="stat-n" aria-label="Rank 3 in Saudi Arabia">#3</span>
+                    <span class="stat-l">Arctic Howl · KSA</span>
+                </div>
+                <div class="stat-cell" role="listitem">
+                    <span class="stat-n" aria-label="Rank 64 globally">#64</span>
+                    <span class="stat-l">Arctic Howl · Global</span>
+                </div>
+                <div class="stat-cell" role="listitem">
+                    <span class="stat-n amber" aria-label="7 certifications">7+</span>
+                    <span class="stat-l">Certifications</span>
+                </div>
+                <div class="stat-cell" role="listitem">
+                    <span class="stat-n amber" aria-label="4 tools released">4</span>
+                    <span class="stat-l">Tools Released</span>
+                </div>
+            </div>
+
+            <div class="hero-btns">
+                <a href="#ops" class="btn btn-red">VIEW OPERATIONS</a>
+                <a href="#contact" class="btn btn-ghost">ESTABLISH CONTACT</a>
+            </div>
         </div>
 
-        <h2><span class="dot"></span> How to detect phishing next time</h2>
-        <ol class="steps">
-          <li><span class="num">1</span><div><div class="step-t">Inspect the sender's real address</div>
-            <div class="step-d">Don't trust the display name. Expand the actual email address and look for lookalikes like
-            <code>micros0ft-support.com</code> or a public domain (<code>@gmail.com</code>) pretending to be your company.</div></div></li>
-          <li><span class="num">2</span><div><div class="step-t">Hover before you click</div>
-            <div class="step-d">Point at a link (don't click) and read the real destination. If the domain isn't the one you expect, stop.</div></div></li>
-          <li><span class="num">3</span><div><div class="step-t">Distrust urgency, threats, rewards and exclusivity</div>
-            <div class="step-d">"Act now", "account suspended", "you've been selected", "limited seats" — manufactured pressure
-            is designed to rush you past your judgment.</div></div></li>
-          <li><span class="num">4</span><div><div class="step-t">Never sign in through an email link</div>
-            <div class="step-d">Reach portals and HR tools from your own bookmarks or by typing the address yourself.</div></div></li>
-          <li><span class="num">5</span><div><div class="step-t">Check the address bar before you type anything</div>
-            <div class="step-d">Confirm the exact domain and the padlock. <code>https://</code> alone does <b>not</b> mean a site is safe.</div></div></li>
-          <li><span class="num">6</span><div><div class="step-t">Watch for odd details</div>
-            <div class="step-d">Generic greetings ("Dear user"), spelling slips, mismatched dates, or a request that doesn't fit your role.</div></div></li>
-          <li><span class="num">7</span><div><div class="step-t">Verify unexpected requests out-of-band</div>
-            <div class="step-d">Asked for credentials, payment or data? Confirm through a known phone number or chat — never by replying.</div></div></li>
-          <li><span class="num">8</span><div><div class="step-t">When in doubt, report it</div>
-            <div class="step-d">Reporting a suspicious email protects everyone — always better than clicking to "just check".</div></div></li>
-        </ol>
-      </section>
+        <!-- RIGHT: photo -->
+        <div class="hero-photo-col">
+            <div class="photo-wrap">
+                <div class="photo-frame">
+                    <img src="1757934830752.jpg" alt="Abdallah Masri — Offensive Security Team Leader" class="hero-photo">
+                    <div class="photo-overlay" aria-hidden="true"></div>
+                    <div class="photo-scan" aria-hidden="true"></div>
+                    <div class="photo-corner tl" aria-hidden="true"></div>
+                    <div class="photo-corner tr" aria-hidden="true"></div>
+                    <div class="photo-corner bl" aria-hidden="true"></div>
+                    <div class="photo-corner br" aria-hidden="true"></div>
+                </div>
+                <div class="photo-label" aria-hidden="true">
+                    <span class="photo-label-id">ID: 0x07 // ELTROJAN</span>
+                    <span class="photo-label-status">IDENTITY VERIFIED</span>
+                </div>
+            </div>
+        </div>
 
-      <div class="report">
-        <b>See something suspicious? Report it.</b><br>
-        Use the <b>Report Phish</b> button in your mail client, or forward the message to your security team.
-        <br><a class="btn" href="#">Report a phishing email</a>
-      </div>
-
-      <p class="foot">
-        This page was part of an authorized security-awareness simulation run by your organization.<br>
-        No credentials were captured in clear text. Thank you for helping keep us secure.
-      </p>
     </div>
-  </section>
+</section>
 
-  <script>
-  (function () {
-    document.body.classList.remove('no-js');
+<!-- ── DOSSIER ── -->
+<section id="dossier" class="wrap" aria-label="Operator dossier">
+    <div class="sh reveal">
+        <div class="sh-top">
+            <div class="sh-rule" aria-hidden="true"></div>
+            <span class="sh-eyebrow">OPERATOR DOSSIER</span>
+        </div>
+        <h2 class="sh-title">WHO IS 0x07</h2>
+        <div class="sh-bar" aria-hidden="true"></div>
+    </div>
 
-    var DURATION = 10000; // 10 seconds of "exfiltration"
-    var log = document.getElementById('log');
-    var fill = document.getElementById('fill');
-    var pct = document.getElementById('pct');
-    var status = document.getElementById('status');
-    var caret = '<span class="caret">&nbsp;</span>';
+    <div class="dossier-grid">
+        <div class="glass-panel reveal">
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <span class="panel-htitle">PROFILE — ABDALLAH MASRI</span>
+                    <span class="panel-stamp" aria-label="Status: Classified">CLASSIFIED</span>
+                </div>
+                <div class="panel-body">
+                    <div class="d-row"><span class="d-key">NAME</span><span class="d-sep">//</span><span class="d-val wh">Abdallah Masri</span></div>
+                    <div class="d-row"><span class="d-key">ALIAS</span><span class="d-sep">//</span><span class="d-val">eltrojan · 0x07</span></div>
+                    <div class="d-row"><span class="d-key">ORIGIN</span><span class="d-sep">//</span><span class="d-val">Palestine 🇵🇸</span></div>
+                    <div class="d-row"><span class="d-key">BASE</span><span class="d-sep">//</span><span class="d-val">Riyadh, KSA 🇸🇦</span></div>
+                    <div class="d-row"><span class="d-key">STATUS</span><span class="d-sep">//</span><span class="d-val red">▶ ACTIVE OPERATOR</span></div>
+                    <div class="d-divider" aria-hidden="true"></div>
+                    <div class="d-row"><span class="d-key">TITLE</span><span class="d-sep">//</span><span class="d-val wh">Offensive Sec Team Leader</span></div>
+                    <div class="d-row"><span class="d-key">ORG</span><span class="d-sep">//</span><span class="d-val">Delta Line International</span></div>
+                    <div class="d-divider" aria-hidden="true"></div>
+                    <div class="d-row"><span class="d-key">FOCUS</span></div>
+                    <div class="d-row"><span class="d-val" style="color:var(--text2)">→</span><span class="d-val">Penetration Testing</span></div>
+                    <div class="d-row"><span class="d-val" style="color:var(--text2)">→</span><span class="d-val">Red Team Operations</span></div>
+                    <div class="d-row"><span class="d-val" style="color:var(--text2)">→</span><span class="d-val">SAMA CSF · NCA ECC · DCC</span></div>
+                    <div class="d-divider" aria-hidden="true"></div>
+                    <div class="d-row"><span class="d-key">DEGREE</span><span class="d-sep">//</span><span class="d-val">BTech Network &amp; InfoSec</span></div>
+                    <div class="d-row"><span class="d-key">UNI</span><span class="d-sep">//</span><span class="d-val">An-Najah National Univ.</span></div>
+                    <div class="d-divider" aria-hidden="true"></div>
+                    <div class="d-row">
+                        <span class="d-key">THREAT</span>
+                        <span class="d-sep">//</span>
+                        <span class="redacted" title="Hover to declassify" tabindex="0" role="button" aria-label="Classified information, hover to reveal">████ CRITICAL ████</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    // Theatrical log lines, each revealed when the progress passes its threshold.
-    var lines = [
-      { at: 2,  html: '<span class="t">$</span> initializing capture…' },
-      { at: 10, html: '<span class="t">[+]</span> Submitted credentials captured <span class="ok">✓</span>' },
-      { at: 24, html: '<span class="t">[+]</span> Session cookies harvested <span class="ok">✓</span>' },
-      { at: 40, html: '<span class="t">[+]</span> Authenticating to mail server… <span class="ok">✓</span>' },
-      { at: 56, html: '<span class="t">[+]</span> Reading inbox &amp; contacts <span class="ok">✓</span>' },
-      { at: 70, html: '<span class="t">[+]</span> Enumerating internal file shares <span class="ok">✓</span>' },
-      { at: 84, html: '<span class="t">[+]</span> Packaging data for exfiltration… <span class="ok">✓</span>' },
-      { at: 97, html: '<span class="t">[!]</span> <span class="bad">Uploading to attacker server…</span>' }
-    ];
-    var shown = 0;
-    function renderLog() {
-      var html = '';
-      for (var i = 0; i < shown; i++) html += '<div>' + lines[i].html + '</div>';
-      html += '<div>' + caret + '</div>';
-      log.innerHTML = html;
-      log.scrollTop = log.scrollHeight;
+        <div class="glass-panel reveal">
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <span class="panel-htitle">CAREER TRAJECTORY</span>
+                    <span class="panel-stamp" aria-label="Status: Verified">VERIFIED</span>
+                </div>
+                <div class="panel-body">
+                    <div class="timeline">
+                        <div class="tl-item">
+                            <div class="tl-date">CURRENT · ACTIVE</div>
+                            <div class="tl-role">Offensive Security Team Leader</div>
+                            <div class="tl-place">Delta Line International · Riyadh, KSA</div>
+                        </div>
+                        <div class="tl-item">
+                            <div class="tl-date">PRIOR</div>
+                            <div class="tl-role">Independent Bug Bounty Hunter</div>
+                            <div class="tl-place">HackerOne · Web Penetration Testing</div>
+                        </div>
+                        <div class="tl-item">
+                            <div class="tl-date">ORIGIN</div>
+                            <div class="tl-role">IT Support</div>
+                            <div class="tl-place">Foundation → Full Offensive Track</div>
+                        </div>
+                    </div>
+                    <div class="d-divider" style="margin-top:1.5rem" aria-hidden="true"></div>
+                    <div class="d-row"><span class="d-key">COVERAGE</span></div>
+                    <div class="d-row"><span class="d-val" style="color:var(--text2)">→</span><span class="d-val">Web · Mobile · API · Active Directory</span></div>
+                    <div class="d-divider" aria-hidden="true"></div>
+                    <div class="d-row"><span class="d-key">COMMS</span><span class="d-sep">//</span><span class="d-val">Arabic (Native) · English (Professional)</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── CERTIFICATIONS ── -->
+<section id="certs" class="wrap" aria-label="Certifications">
+    <div class="sh reveal">
+        <div class="sh-top">
+            <div class="sh-rule" aria-hidden="true"></div>
+            <span class="sh-eyebrow">QUALIFICATIONS</span>
+        </div>
+        <h2 class="sh-title">CERTIFICATIONS</h2>
+        <div class="sh-bar" aria-hidden="true"></div>
+    </div>
+    <div class="certs-grid reveal">
+        <div class="cert-cell" data-cert="eWPTX">
+            <div class="cc-name">eWPTX</div>
+            <div class="cc-issuer">eLearnSecurity</div>
+            <div class="cc-domain">Advanced Web Penetration Testing</div>
+        </div>
+        <div class="cert-cell" data-cert="eMAPT">
+            <div class="cc-name">eMAPT</div>
+            <div class="cc-issuer">eLearnSecurity</div>
+            <div class="cc-domain">Mobile Application Penetration Testing</div>
+        </div>
+        <div class="cert-cell" data-cert="eCPPT">
+            <div class="cc-name">eCPPT</div>
+            <div class="cc-issuer">eLearnSecurity</div>
+            <div class="cc-domain">Professional Penetration Tester</div>
+        </div>
+        <div class="cert-cell" data-cert="CRTP">
+            <div class="cc-name">CRTP</div>
+            <div class="cc-issuer">Altered Security</div>
+            <div class="cc-domain">Certified Red Team Professional</div>
+        </div>
+        <div class="cert-cell" data-cert="API">
+            <div class="cc-name">API-RTA</div>
+            <div class="cc-issuer">APIsec University</div>
+            <div class="cc-domain">API Security Red Team Associate</div>
+        </div>
+        <div class="cert-cell" data-cert="Web">
+            <div class="cc-name">Web-RTA</div>
+            <div class="cc-issuer">APIsec University</div>
+            <div class="cc-domain">Web Red Team Associate</div>
+        </div>
+        <div class="cert-cell" data-cert="AD">
+            <div class="cc-name">AD-RTS</div>
+            <div class="cc-issuer">Altered Security</div>
+            <div class="cc-domain">Active Directory Red Team Specialist</div>
+        </div>
+    </div>
+</section>
+
+<!-- ── SKILL MATRIX ── -->
+<section id="skills" class="wrap" aria-label="Skill matrix">
+    <div class="sh reveal">
+        <div class="sh-top">
+            <div class="sh-rule" aria-hidden="true"></div>
+            <span class="sh-eyebrow">CAPABILITY ASSESSMENT</span>
+        </div>
+        <h2 class="sh-title">SKILL MATRIX</h2>
+        <div class="sh-bar" aria-hidden="true"></div>
+    </div>
+    <div class="skills-grid">
+        <div class="chart-panel reveal">
+            <div class="chart-title">DOMAIN COVERAGE</div>
+            <div class="chart-wrap">
+                <canvas id="radarChart" aria-label="Radar chart showing domain coverage"></canvas>
+            </div>
+        </div>
+        <div class="chart-panel reveal">
+            <div class="chart-title">PROFICIENCY LEVELS</div>
+            <div class="chart-wrap">
+                <canvas id="barChart" aria-label="Bar chart showing proficiency levels"></canvas>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── RANKINGS ── -->
+<section id="rankings" class="wrap" aria-label="Competitive rankings">
+    <div class="sh reveal">
+        <div class="sh-top">
+            <div class="sh-rule" aria-hidden="true"></div>
+            <span class="sh-eyebrow">FIELD PERFORMANCE</span>
+        </div>
+        <h2 class="sh-title">RANKINGS</h2>
+        <div class="sh-bar" aria-hidden="true"></div>
+    </div>
+    <div class="rank-grid">
+        <div class="rank-card reveal" aria-label="OffSec Arctic Howl Gauntlet rankings">
+            <div class="rank-platform">OffSec Arctic Howl Gauntlet</div>
+            <div class="rank-num">#3 <span class="rank-suffix">KSA</span></div>
+            <div class="rank-label">3rd in Saudi Arabia</div>
+            <div class="rank-sub">#64 Globally</div>
+        </div>
+        <div class="rank-card reveal" aria-label="HackTheBox ranking">
+            <div class="rank-platform">HackTheBox</div>
+            <div class="rank-num amber" style="font-size:3.2rem; letter-spacing:0.1em">PRO HACKER</div>
+            <div class="rank-label">Elite Rank Achieved</div>
+            <div class="rank-sub">Active CTF Competitor</div>
+        </div>
+    </div>
+</section>
+
+<!-- ── OPERATIONS ── -->
+<section id="ops" class="wrap" aria-label="Projects and operations">
+    <div class="sh reveal">
+        <div class="sh-top">
+            <div class="sh-rule" aria-hidden="true"></div>
+            <span class="sh-eyebrow">OPERATIONS LOG</span>
+        </div>
+        <h2 class="sh-title">PROJECTS</h2>
+        <div class="sh-bar" aria-hidden="true"></div>
+    </div>
+    <div class="proj-grid">
+
+        <article class="proj-card reveal" aria-label="AutoPent project">
+            <div class="proj-bg-num" aria-hidden="true">01</div>
+            <div class="proj-inner">
+                <div class="proj-status">ACTIVE OPERATION</div>
+                <div class="proj-name">AUTOPENT</div>
+                <div class="proj-desc">
+                    Semi-autonomous web application penetration testing system. Claude API integration with an approval-gated action flow ensures controlled autonomy. RAG knowledge base enables context-aware vulnerability discovery, automated attack planning, and business logic testing at scale.
+                </div>
+                <div class="tags">
+                    <span class="tag">Claude API</span>
+                    <span class="tag">RAG</span>
+                    <span class="tag">Python</span>
+                    <span class="tag">Autonomous Agents</span>
+                    <span class="tag">Business Logic</span>
+                </div>
+            </div>
+        </article>
+
+        <article class="proj-card reveal" aria-label="Pentest Report Platform project">
+            <div class="proj-bg-num" aria-hidden="true">02</div>
+            <div class="proj-inner">
+                <div class="proj-status">ACTIVE OPERATION</div>
+                <div class="proj-name">PENTEST REPORT PLATFORM</div>
+                <div class="proj-desc">
+                    Full-stack pentest report management system with AI-powered finding enrichment, a retest tracking module, severity heatmaps for visual risk analysis, and automated evidence auto-captioning to accelerate deliverable production.
+                </div>
+                <div class="tags">
+                    <span class="tag">Flask</span>
+                    <span class="tag">PostgreSQL</span>
+                    <span class="tag">React</span>
+                    <span class="tag">AI Enrichment</span>
+                    <span class="tag">Heatmaps</span>
+                </div>
+            </div>
+        </article>
+
+        <article class="proj-card reveal" aria-label="Burp Suite MCP Integration project">
+            <div class="proj-bg-num" aria-hidden="true">03</div>
+            <div class="proj-inner">
+                <div class="proj-status amber">DEPLOYED</div>
+                <div class="proj-name">BURP SUITE MCP</div>
+                <div class="proj-desc">
+                    17 custom offensive security tools integrated into Burp Suite via the MCP protocol. Covers JWT attack automation, IDOR vulnerability hunting, session management weaknesses, and AI-powered HTTP traffic pattern analysis.
+                </div>
+                <div class="tags">
+                    <span class="tag">Burp Suite</span>
+                    <span class="tag">MCP</span>
+                    <span class="tag">JWT Attacks</span>
+                    <span class="tag">IDOR Hunting</span>
+                    <span class="tag">AI Analysis</span>
+                </div>
+            </div>
+        </article>
+
+        <article class="proj-card reveal" aria-label="Postman MCP project">
+            <div class="proj-bg-num" aria-hidden="true">04</div>
+            <div class="proj-inner">
+                <div class="proj-status amber">DEPLOYED</div>
+                <div class="proj-name">POSTMAN MCP</div>
+                <div class="proj-desc">
+                    Postman MCP server integrated directly into Claude Code, enabling full OWASP API Security Top 10 testing workflows from the AI assistant. Streamlines API security assessments from collection to exploit, end-to-end.
+                </div>
+                <div class="tags">
+                    <span class="tag">Postman</span>
+                    <span class="tag">MCP</span>
+                    <span class="tag">Claude Code</span>
+                    <span class="tag">OWASP API</span>
+                    <span class="tag">API Security</span>
+                </div>
+            </div>
+        </article>
+
+    </div>
+</section>
+
+<!-- ── CONTACT ── -->
+<section id="contact" class="wrap" aria-label="Contact information">
+    <div class="sh reveal">
+        <div class="sh-top">
+            <div class="sh-rule" aria-hidden="true"></div>
+            <span class="sh-eyebrow">ESTABLISH CONTACT</span>
+        </div>
+        <h2 class="sh-title">REACH OUT</h2>
+        <div class="sh-bar" aria-hidden="true"></div>
+    </div>
+    <div class="contact-grid">
+        <a href="https://github.com/eltrojan" target="_blank" rel="noopener noreferrer" class="contact-link reveal" aria-label="GitHub profile: eltrojan">
+            <div class="c-icon-box" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+            </div>
+            <div>
+                <div class="c-platform">GitHub</div>
+                <div class="c-handle">@eltrojan</div>
+            </div>
+        </a>
+
+        <a href="https://linkedin.com/in/abdallah-masri" target="_blank" rel="noopener noreferrer" class="contact-link reveal" aria-label="LinkedIn profile: Abdallah Masri">
+            <div class="c-icon-box" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            </div>
+            <div>
+                <div class="c-platform">LinkedIn</div>
+                <div class="c-handle">Abdallah Masri</div>
+            </div>
+        </a>
+
+        <a href="https://x.com/Abdallah0x07" target="_blank" rel="noopener noreferrer" class="contact-link reveal" aria-label="X/Twitter profile: Abdallah0x07">
+            <div class="c-icon-box" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            </div>
+            <div>
+                <div class="c-platform">X / Twitter</div>
+                <div class="c-handle">@Abdallah0x07</div>
+            </div>
+        </a>
+
+        <a href="mailto:abdallah_sec@outlook.sa" class="contact-link reveal" aria-label="Email: abdallah_sec@outlook.sa">
+            <div class="c-icon-box" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            </div>
+            <div>
+                <div class="c-platform">Email</div>
+                <div class="c-handle">abdallah_sec@outlook.sa</div>
+            </div>
+        </a>
+    </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+    <div class="footer-name"><span>[</span>ELTROJAN<span>]</span> · ABDALLAH MASRI</div>
+    <div class="footer-meta">
+        Palestinian 🇵🇸 · Riyadh, KSA 🇸🇦<br>
+        Offensive Security Team Leader · Delta Line International
+    </div>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════
+   CANVAS — Tactical Grid + Crosshair + Arc + Scan Line
+   ═══════════════════════════════════════ */
+const canvas = document.getElementById('scope-canvas');
+const ctx    = canvas.getContext('2d');
+let W, H, scanY = 0, arcAngle = 0;
+
+function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    scanY = 0;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const GRID = 70;
+const RED  = 'rgba(204,0,0,';
+
+function drawCanvas() {
+    ctx.clearRect(0, 0, W, H);
+
+    /* grid */
+    ctx.strokeStyle = RED + '0.07)';
+    ctx.lineWidth   = 0.5;
+    for (let x = 0; x < W; x += GRID) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y < H; y += GRID) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+    /* center crosshair */
+    const cx = W/2, cy = H/2, GAP = 36, ARM = 140;
+    ctx.strokeStyle = RED + '0.45)'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(cx-ARM,cy); ctx.lineTo(cx-GAP,cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx+GAP,cy); ctx.lineTo(cx+ARM,cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx,cy-ARM); ctx.lineTo(cx,cy-GAP); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx,cy+GAP); ctx.lineTo(cx,cy+ARM); ctx.stroke();
+
+    /* tick marks */
+    ctx.strokeStyle = RED + '0.25)';
+    [60,90,115].forEach(d => {
+        ctx.beginPath(); ctx.moveTo(cx-d,cy-5); ctx.lineTo(cx-d,cy+5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx+d,cy-5); ctx.lineTo(cx+d,cy+5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx-5,cy-d); ctx.lineTo(cx+5,cy-d); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx-5,cy+d); ctx.lineTo(cx+5,cy+d); ctx.stroke();
+    });
+
+    /* center dot */
+    ctx.fillStyle = RED + '0.7)';
+    ctx.beginPath(); ctx.arc(cx,cy,2.5,0,Math.PI*2); ctx.fill();
+
+    /* circles */
+    [90,170,260].forEach((r,i) => {
+        ctx.strokeStyle = RED + (0.18 - i*0.04) + ')'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+    });
+
+    /* rotating arcs */
+    arcAngle += 0.0025;
+    ctx.strokeStyle = RED+'0.35)'; ctx.lineWidth = 1.2; ctx.setLineDash([8,4]);
+    ctx.beginPath(); ctx.arc(cx,cy,200,arcAngle,arcAngle+Math.PI*1.5); ctx.stroke();
+    ctx.strokeStyle = RED+'0.2)';  ctx.lineWidth = 0.8; ctx.setLineDash([4,8]);
+    ctx.beginPath(); ctx.arc(cx,cy,130,-arcAngle*1.5,-arcAngle*1.5+Math.PI); ctx.stroke();
+    ctx.setLineDash([]);
+
+    /* corner brackets */
+    const BKT=30, MRG=40;
+    [[MRG,MRG,1,1],[W-MRG,MRG,-1,1],[MRG,H-MRG,1,-1],[W-MRG,H-MRG,-1,-1]].forEach(([x,y,sx,sy])=>{
+        ctx.strokeStyle=RED+'0.25)'; ctx.lineWidth=1.2;
+        ctx.beginPath(); ctx.moveTo(x+sx*BKT,y); ctx.lineTo(x,y); ctx.lineTo(x,y+sy*BKT); ctx.stroke();
+    });
+
+    /* scan line */
+    const grd = ctx.createLinearGradient(0,scanY-40,0,scanY+4);
+    grd.addColorStop(0,RED+'0)'); grd.addColorStop(0.7,RED+'0.05)'); grd.addColorStop(1,RED+'0.12)');
+    ctx.fillStyle = grd; ctx.fillRect(0,scanY-40,W,44);
+    ctx.fillStyle = RED+'0.18)'; ctx.fillRect(0,scanY,W,1.5);
+    scanY += 0.7; if(scanY>H) scanY=0;
+
+    requestAnimationFrame(drawCanvas);
+}
+drawCanvas();
+
+/* ═══════════════════════════════════════
+   GSAP — Hero entrance + ScrollTrigger section reveals
+   ═══════════════════════════════════════ */
+gsap.registerPlugin(ScrollTrigger);
+
+// Remove CSS animation from hero elements (handled by GSAP now)
+document.querySelectorAll('.eyebrow,.hero-codename,.hero-name,.hero-name-line2,.hero-type,.stats-panel,.hero-btns,.hero-photo-col').forEach(el => {
+    el.style.opacity = '0';
+    el.style.animation = 'none';
+});
+
+// Hero entrance timeline
+const heroTl = gsap.timeline({ delay: 0.2 });
+heroTl
+    .to('.eyebrow',       { opacity:1, y:0, duration:0.6, ease:'power3.out' }, 0)
+    .from('.eyebrow',     { y:20 }, 0)
+    .to('.hero-codename', { opacity:1, y:0, duration:0.6, ease:'power3.out' }, 0.15)
+    .from('.hero-codename',{ y:20 }, 0.15)
+    .to('.hero-name',     { opacity:1, y:0, duration:0.7, ease:'power3.out' }, 0.28)
+    .from('.hero-name',   { y:30 }, 0.28)
+    .to('.hero-name-line2',{ opacity:1, y:0, duration:0.7, ease:'power3.out' }, 0.38)
+    .from('.hero-name-line2',{ y:30 }, 0.38)
+    .to('.hero-type',     { opacity:1, y:0, duration:0.6, ease:'power3.out' }, 0.5)
+    .from('.hero-type',   { y:20 }, 0.5)
+    .to('.stats-panel',   { opacity:1, y:0, duration:0.6, ease:'power3.out' }, 0.62)
+    .from('.stats-panel', { y:20 }, 0.62)
+    .to('.hero-btns',     { opacity:1, y:0, duration:0.6, ease:'power3.out' }, 0.74)
+    .from('.hero-btns',   { y:20 }, 0.74)
+    .to('.hero-photo-col',{ opacity:1, x:0, duration:0.9, ease:'power3.out' }, 0.35)
+    .from('.hero-photo-col',{ x:40 }, 0.35);
+
+// Section reveals with ScrollTrigger
+gsap.utils.toArray('.reveal').forEach((el, i) => {
+    gsap.fromTo(el,
+        { opacity:0, y:36 },
+        {
+            opacity:1, y:0,
+            duration: 0.7,
+            ease: 'power3.out',
+            delay: (i % 3) * 0.1,
+            scrollTrigger: {
+                trigger: el,
+                start: 'top 88%',
+                toggleActions: 'play none none none'
+            }
+        }
+    );
+});
+
+// Section title slide-in from left
+gsap.utils.toArray('.sh-title').forEach(el => {
+    gsap.fromTo(el,
+        { opacity:0, x:-40 },
+        {
+            opacity:1, x:0,
+            duration:0.8, ease:'power3.out',
+            scrollTrigger: { trigger:el, start:'top 85%' }
+        }
+    );
+});
+
+/* ═══════════════════════════════════════
+   TYPEWRITER
+   ═══════════════════════════════════════ */
+const phrases = [
+    'Offensive Security Team Leader · Delta Line International',
+    'Arctic Howl Gauntlet: #3 KSA · #64 Global',
+    'Web · Mobile · API · Active Directory',
+    'Building AI-powered offensive security tooling',
+    'SAMA CSF · NCA ECC · DCC Compliance Assessments',
+];
+let pi=0, ci=0, deleting=false;
+const tw = document.getElementById('typewriter');
+
+function typewrite() {
+    const cur = phrases[pi];
+    if (deleting) {
+        tw.textContent = cur.substring(0,ci--);
+        if(ci<0){ deleting=false; pi=(pi+1)%phrases.length; setTimeout(typewrite,500); return; }
+    } else {
+        tw.textContent = cur.substring(0,ci++);
+        if(ci>cur.length){ deleting=true; setTimeout(typewrite,2400); return; }
     }
-    renderLog();
+    setTimeout(typewrite, deleting?32:52);
+}
+setTimeout(typewrite, 1800);
 
-    var start = null, done = false;
-    function tick(ts) {
-      if (start === null) start = ts;
-      var p = Math.min(1, (ts - start) / DURATION);
-      var p100 = Math.round(p * 100);
-      fill.style.width = p100 + '%';
-      pct.textContent = p100 + '%';
-      while (shown < lines.length && p100 >= lines[shown].at) { shown++; renderLog(); }
-      if (p100 >= 100) status.textContent = 'Exfiltration complete';
-      if (p < 1 && !done) { requestAnimationFrame(tick); } else if (!done) { finish(); }
+/* ═══════════════════════════════════════
+   PROJECT CARD MOUSE GLOW
+   ═══════════════════════════════════════ */
+document.querySelectorAll('.proj-card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', `${e.clientX-r.left}px`);
+        card.style.setProperty('--my', `${e.clientY-r.top}px`);
+    });
+});
+
+/* ═══════════════════════════════════════
+   CHART.JS — Skill Matrix
+   ═══════════════════════════════════════ */
+Chart.defaults.color = '#4a4a4a';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size   = 11;
+
+const RED_SOLID  = 'rgba(204,0,0,0.85)';
+const RED_FILL   = 'rgba(204,0,0,0.12)';
+const RED_BORDER = 'rgba(204,0,0,0.5)';
+const AMBER      = 'rgba(245,158,11,0.85)';
+const AMBER_FILL = 'rgba(245,158,11,0.1)';
+const GRID_COLOR = 'rgba(255,255,255,0.04)';
+
+// ── Radar Chart ──
+const radarCtx = document.getElementById('radarChart').getContext('2d');
+new Chart(radarCtx, {
+    type: 'radar',
+    data: {
+        labels: ['Web Pentesting','Active Directory','Mobile Security','API Security','Red Team Ops','Compliance'],
+        datasets: [{
+            label: 'Proficiency',
+            data: [95, 90, 88, 92, 90, 85],
+            backgroundColor: RED_FILL,
+            borderColor: RED_SOLID,
+            borderWidth: 1.5,
+            pointBackgroundColor: RED_SOLID,
+            pointBorderColor: 'transparent',
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: AMBER,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+            duration: 1400,
+            easing: 'easeInOutQuart',
+            delay: (ctx) => ctx.dataIndex * 80,
+        },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: 'rgba(8,8,8,0.92)',
+                borderColor: RED_BORDER,
+                borderWidth: 1,
+                padding: 10,
+                callbacks: { label: ctx => `  ${ctx.raw}%` }
+            }
+        },
+        scales: {
+            r: {
+                min: 60, max: 100,
+                backgroundColor: 'transparent',
+                angleLines: { color: GRID_COLOR },
+                grid:        { color: GRID_COLOR },
+                ticks: {
+                    display: false,
+                    stepSize: 10,
+                    backdropColor: 'transparent',
+                },
+                pointLabels: {
+                    color: '#666',
+                    font: { size: 10, family: "'JetBrains Mono', monospace" },
+                    padding: 8,
+                }
+            }
+        }
     }
+});
 
-    var timer = requestAnimationFrame(tick);
-
-    function finish() {
-      if (done) return; done = true;
-      cancelAnimationFrame(timer);
-      var p1 = document.getElementById('phase1'), p2 = document.getElementById('phase2');
-      p1.hidden = true;
-      p2.hidden = false;
-      p2.classList.add('fade-in');
-      document.body.classList.remove('attack');
-      document.body.classList.add('reveal');
-      window.scrollTo(0, 0);
+// Animate radar in when it scrolls into view
+ScrollTrigger.create({
+    trigger: '#skills',
+    start: 'top 75%',
+    onEnter: () => {
+        gsap.fromTo('#radarChart', { opacity:0, scale:0.85 }, { opacity:1, scale:1, duration:0.9, ease:'back.out(1.2)' });
     }
+});
 
-    document.getElementById('skip').addEventListener('click', finish);
-  })();
-  </script>
+// ── Horizontal Bar Chart ──
+const barCtx = document.getElementById('barChart').getContext('2d');
+new Chart(barCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Web App Pentesting','API Security','Active Directory','Red Team Ops','Mobile Security','Compliance'],
+        datasets: [{
+            label: 'Skill Level',
+            data: [95, 92, 90, 90, 88, 85],
+            backgroundColor: [
+                RED_SOLID, RED_SOLID, RED_SOLID,
+                AMBER, AMBER, AMBER,
+            ],
+            borderColor: 'transparent',
+            borderRadius: 2,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+            duration: 1200,
+            easing: 'easeInOutQuart',
+            delay: (ctx) => ctx.dataIndex * 100,
+        },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: 'rgba(8,8,8,0.92)',
+                borderColor: RED_BORDER,
+                borderWidth: 1,
+                padding: 10,
+                callbacks: { label: ctx => `  ${ctx.raw}%` }
+            }
+        },
+        scales: {
+            x: {
+                min: 60, max: 100,
+                grid:  { color: GRID_COLOR },
+                ticks: {
+                    color: '#3a3a3a',
+                    callback: v => v + '%',
+                    font: { size: 10 }
+                },
+                border: { color: GRID_COLOR }
+            },
+            y: {
+                grid:  { display: false },
+                ticks: { color: '#555', font: { size: 10 }, padding: 8 },
+                border:{ display: false }
+            }
+        }
+    }
+});
+
+ScrollTrigger.create({
+    trigger: '#skills',
+    start: 'top 75%',
+    onEnter: () => {
+        gsap.fromTo('#barChart', { opacity:0, x:30 }, { opacity:1, x:0, duration:0.9, ease:'power3.out', delay:0.15 });
+    }
+});
+</script>
+
 </body>
 </html>
